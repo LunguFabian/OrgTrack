@@ -1,0 +1,83 @@
+using Microsoft.EntityFrameworkCore;
+using OrgTrack.Application.DTOs;
+using OrgTrack.Application.Interfaces;
+using OrgTrack.Application.UseCases;
+using TaskStatus = OrgTrack.Domain.Enums.TaskStatus;
+
+namespace OrgTrack.Infrastructure.Persistence;
+
+public class AnalyticsService(
+    IActivityLogRepository activityLogRepository,
+    IOrganizationUnitRepository unitRepository,
+    OrgTrackDbContext context)
+{
+    /// <summary>
+    /// Calculates the activity score of a volunteer.
+    /// Formula: TasksDone * 3 + EventsAttended * 1
+    /// </summary>
+    public async Task<MemberActivityScoreDto> GetMemberScoreAsync(Guid userId)
+    {
+        var logs = await activityLogRepository.GetByUserIdAsync(userId, limit: 1000);
+
+        var tasksDone = logs.Count(l => l.Action == ActivityLogService.ActionTaskDone);
+        var eventsAttended = logs.Count(l =>
+            l.Action == ActivityLogService.ActionAttendanceConfirmed &&
+            l.Details != null && l.Details.Contains("Present"));
+        var user = await context.Users.FindAsync(userId);
+        var name = user != null ? $"{user.FirstName} {user.LastName}".Trim() : "Unknown";
+
+        return new MemberActivityScoreDto(
+            userId,
+            name,
+            TasksDone: tasksDone,
+            EventsAttended: eventsAttended,
+            TotalScore: tasksDone * 3 + eventsAttended * 1
+        );
+    }
+
+    /// <summary>
+    /// Returns an activity summary for an organizational unit.
+    /// </summary>
+    public async Task<UnitActivitySummaryDto> GetUnitSummaryAsync(Guid unitId)
+    {
+        var unit = await unitRepository.GetByIdAsync(unitId);
+        if (unit == null) throw new ArgumentException("Unit not found.");
+
+        var logs = await activityLogRepository.GetByUnitIdAsync(unitId, limit: 1000);
+
+        var tasksDone = await context.Tasks.CountAsync(t => t.OrganizationUnitId == unitId && t.Status == TaskStatus.Done);
+        var eventsHeld = await context.Events.CountAsync(e => e.OrganizationUnitId == unitId);
+        var membersActive = await context.UserUnitRoles.CountAsync(m => m.OrganizationUnitId == unitId);
+        
+        var recentLogs = logs
+            .Take(20)
+            .Select(l => new ActivityLogDto(l.CreatedAt, l.Action, l.EntityType, l.Details));
+
+        return new UnitActivitySummaryDto(
+            unitId,
+            unit.Name,
+            tasksDone,
+            eventsHeld,
+            membersActive,
+            recentLogs
+        );
+    }
+
+    /// <summary>
+    /// National dashboard: the aggregate scores of all descendant units from the national node.
+    /// </summary>
+    public async Task<IEnumerable<UnitActivitySummaryDto>> GetNationalDashboardAsync(Guid nationalUnitId)
+    {
+        var allUnits = await context.OrganizationUnits
+            .Where(ou => ou.ParentUnitId == nationalUnitId)
+            .ToListAsync();
+
+        var summaries = new List<UnitActivitySummaryDto>();
+        foreach (var unit in allUnits)
+        {
+            summaries.Add(await GetUnitSummaryAsync(unit.Id));
+        }
+
+        return summaries.OrderByDescending(s => s.TasksDone + s.EventsHeld);
+    }
+}

@@ -52,3 +52,39 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# SECURITY
+
+appsettings.Development.json
+
+secrets.json
+
+.env
+.env.local
+.env.production
+
+# ============================================
+# IDE / Editor
+# ============================================
+
+# JetBrains Rider / IntelliJ
+.idea/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.csproj.user
+
+# VS Code
+.vscode/
+
+# ============================================
+# OS Files
+# ============================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
