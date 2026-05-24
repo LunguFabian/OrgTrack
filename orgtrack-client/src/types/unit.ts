@@ -37,6 +37,14 @@ export interface CreateTaskRequest {
   deadline?: string | null;
 }
 
+export interface UpdateTaskRequest {
+  title: string;
+  description: string;
+  priority: string;
+  assigneeId?: string | null;
+  deadline?: string | null;
+}
+
 export interface EventDto {
   id: string;
   title: string;
@@ -47,4 +55,29 @@ export interface EventDto {
   recurrencePattern?: string;
   organizationUnitId: string;
   createdAt: string;
+  currentUserRsvp?: string;
+}
+
+export interface CreateEventRequest {
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  isRecurring: boolean;
+  recurrencePattern?: string;
+  externalCalendarId?: string;
+  invitedUnitIds: string[];
+  invitedUserIds: string[];
+}
+
+export interface UpdateEventRequest {
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  isRecurring: boolean;
+  recurrencePattern?: string;
+  externalCalendarId?: string;
+  invitedUnitIds: string[];
+  invitedUserIds: string[];
 }

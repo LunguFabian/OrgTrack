@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { eventsService, type EventDto, type AttendanceReportItem } from '../../api/services/events.service';
-import { useAuthStore } from '../../stores/authStore';
 import { useOrgStore } from '../../stores/orgStore';
 import { useToastStore } from '../../stores/toastStore';
 import { organizationService } from '../../api/services/organization.service';
 import {
-  CalendarDays, Plus, Clock, MapPin, Users, CheckCircle2,
-  XCircle, HelpCircle, ChevronDown, ChevronUp, X, Loader2,
-  Calendar, Repeat, AlarmClock
+  Clock, Users, ChevronDown, ChevronUp, CalendarDays, Plus, AlarmClock, Repeat, Trash2,
+  CheckCircle2, XCircle, HelpCircle, Loader2, Calendar, X, Pencil
 } from 'lucide-vue-next';
 
 const props = defineProps<{
@@ -16,10 +14,10 @@ const props = defineProps<{
   isLeader: boolean;
 }>();
 
-const authStore = useAuthStore();
 const orgStore = useOrgStore();
 const toastStore = useToastStore();
 
+// --- Core state ---
 const events = ref<EventDto[]>([]);
 const isLoading = ref(true);
 const expandedEventId = ref<string | null>(null);
@@ -27,10 +25,18 @@ const attendanceReports = ref<Record<string, AttendanceReportItem[]>>({});
 const loadingAttendance = ref<string | null>(null);
 const rsvpLoading = ref<string | null>(null);
 const userRsvps = ref<Record<string, string>>({});
-const isCreateModalOpen = ref(false);
+
+// --- Delete confirmation state (inline, no browser alert) ---
+const confirmingDeleteId = ref<string | null>(null);
+
+// --- Modal state ---
+const isEventModalOpen = ref(false);
+const isEditingEvent = ref(false);
+const editingEventId = ref<string | null>(null);
 const isCreating = ref(false);
 const createError = ref('');
-const newEventForm = ref({
+const eventForm = ref({
+  id: undefined as string | undefined,
   title: '',
   description: '',
   startDate: '',
@@ -40,6 +46,8 @@ const newEventForm = ref({
   invitedUnitIds: [] as string[],
   invitedUserIds: [] as string[],
 });
+
+// --- Invite users search ---
 const userSearchQuery = ref('');
 const isSearchingUsers = ref(false);
 const searchedUsers = ref<Array<{id: string, firstName: string, lastName: string, email: string}>>([]);
@@ -64,57 +72,43 @@ const onUserSearch = () => {
   }, 300);
 };
 
-const toggleUserInvite = (user: any) => {
+const toggleUserInvite = (user: {id: string, firstName: string, lastName: string, email: string}) => {
   const index = selectedUsers.value.findIndex(u => u.id === user.id);
   if (index === -1) {
     selectedUsers.value.push(user);
-    newEventForm.value.invitedUserIds.push(user.id);
+    eventForm.value.invitedUserIds.push(user.id);
   } else {
     selectedUsers.value.splice(index, 1);
-    newEventForm.value.invitedUserIds = newEventForm.value.invitedUserIds.filter(id => id !== user.id);
+    eventForm.value.invitedUserIds = eventForm.value.invitedUserIds.filter(id => id !== user.id);
   }
 };
 
-const isUserSelected = (userId: string) => newEventForm.value.invitedUserIds.includes(userId);
-const allUnits = computed(() => {
-  const allowed = new Set<string>();
-  const userRoles = authStore.user?.unitRoles || [];
-  const leaderUnitIds = userRoles
-    .filter(r => r.role.name.includes('President') || r.role.name.includes('Leader'))
-    .map(r => r.organizationUnitId);
-  const collectDescendants = (node: any, isAllowed: boolean) => {
-    const currentAllowed = isAllowed || leaderUnitIds.includes(node.id);
-    if (currentAllowed) {
-      allowed.add(node.id);
-    }
-    if (node.children) {
-      node.children.forEach((child: any) => collectDescendants(child, currentAllowed));
-    }
-  };
-  orgStore.tree.forEach(root => collectDescendants(root, false));
+const isUserSelected = (userId: string) => eventForm.value.invitedUserIds.includes(userId);
 
+// --- Invite units ---
+const allUnits = computed(() => {
   const units: {id: string, name: string}[] = [];
   const traverse = (node: any, depth = 0) => {
-    if (allowed.has(node.id)) {
-      units.push({ id: node.id, name: depth > 0 ? `${'-'.repeat(depth)} ${node.name}` : node.name });
-    }
+    units.push({ id: node.id, name: depth > 0 ? `${'—'.repeat(depth)} ${node.name}` : node.name });
     if (node.children) {
       node.children.forEach((child: any) => traverse(child, depth + 1));
     }
   };
-  orgStore.tree.forEach(root => traverse(root, 0));
+  orgStore.tree.forEach((root: any) => traverse(root, 0));
   return units;
 });
 const isUnitsDropdownOpen = ref(false);
 const toggleUnitInvite = (unitId: string) => {
-  const index = newEventForm.value.invitedUnitIds.indexOf(unitId);
+  const index = eventForm.value.invitedUnitIds.indexOf(unitId);
   if (index === -1) {
-    newEventForm.value.invitedUnitIds.push(unitId);
+    eventForm.value.invitedUnitIds.push(unitId);
   } else {
-    newEventForm.value.invitedUnitIds.splice(index, 1);
+    eventForm.value.invitedUnitIds.splice(index, 1);
   }
 };
-const isUnitSelected = (unitId: string) => newEventForm.value.invitedUnitIds.includes(unitId);
+const isUnitSelected = (unitId: string) => eventForm.value.invitedUnitIds.includes(unitId);
+
+// --- Data fetching ---
 const fetchEvents = async () => {
   isLoading.value = true;
   try {
@@ -174,11 +168,7 @@ const isTomorrow = (iso: string) => {
   return d.toDateString() === tomorrow.toDateString();
 };
 
-const dateLabel = (iso: string) => {
-  if (isToday(iso)) return 'Today';
-  if (isTomorrow(iso)) return 'Tomorrow';
-  return formatDate(iso);
-};
+// --- RSVP ---
 const rsvpOptions = [
   { status: 'Present', label: 'Going', icon: CheckCircle2, color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20' },
   { status: 'Maybe',   label: 'Maybe',  icon: HelpCircle,   color: 'text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20' },
@@ -197,6 +187,8 @@ const submitRsvp = async (eventId: string, status: 'Present' | 'Absent' | 'Maybe
     rsvpLoading.value = null;
   }
 };
+
+// --- Expand / Attendance ---
 const toggleExpand = async (eventId: string) => {
   if (expandedEventId.value === eventId) {
     expandedEventId.value = null;
@@ -223,7 +215,7 @@ const confirmAttendanceAsLeader = async (eventId: string, userId: string, curren
   try {
     await eventsService.confirmAttendance(props.unitId, eventId, userId, nextStatus);
     const report = attendanceReports.value[eventId];
-    const item = report.find(r => r.userId === userId);
+    const item = report.find((r: any) => r.userId === userId);
     if (item) item.status = nextStatus;
     toastStore.showToast('Attendance updated', 'success');
   } catch (err: any) {
@@ -237,27 +229,54 @@ const statusBadge = (status: string) => {
   if (status === 'NotResponded') return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
   return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
 };
+
+// --- Create / Edit modal ---
 const openCreateModal = () => {
   createError.value = '';
-  newEventForm.value = {
+  isEditingEvent.value = false;
+  editingEventId.value = null;
+  eventForm.value = {
+    id: undefined,
     title: '', description: '',
     startDate: '', endDate: '',
     isRecurring: false, recurrencePattern: null,
-    invitedUnitIds: [],
-    invitedUserIds: [],
+    invitedUnitIds: [], invitedUserIds: [],
   };
   userSearchQuery.value = '';
   searchedUsers.value = [];
   selectedUsers.value = [];
-  isCreateModalOpen.value = true;
+  isUnitsDropdownOpen.value = false;
+  isEventModalOpen.value = true;
 };
 
-const submitCreateEvent = async () => {
-  if (!newEventForm.value.title || !newEventForm.value.startDate || !newEventForm.value.endDate) {
+const openEditModal = (event: EventDto) => {
+  createError.value = '';
+  isEditingEvent.value = true;
+  editingEventId.value = event.id;
+  eventForm.value = {
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    startDate: new Date(event.startDate).toISOString().slice(0, 16),
+    endDate: new Date(event.endDate).toISOString().slice(0, 16),
+    isRecurring: event.isRecurring,
+    recurrencePattern: event.recurrencePattern,
+    invitedUnitIds: event.invitedUnitIds ? [...event.invitedUnitIds] : [],
+    invitedUserIds: event.invitedUserIds ? [...event.invitedUserIds] : [],
+  };
+  userSearchQuery.value = '';
+  searchedUsers.value = [];
+  selectedUsers.value = [];
+  isUnitsDropdownOpen.value = false;
+  isEventModalOpen.value = true;
+};
+
+const submitEvent = async () => {
+  if (!eventForm.value.title || !eventForm.value.startDate || !eventForm.value.endDate) {
     createError.value = 'Title, start date and end date are required.';
     return;
   }
-  if (new Date(newEventForm.value.endDate) <= new Date(newEventForm.value.startDate)) {
+  if (new Date(eventForm.value.endDate) <= new Date(eventForm.value.startDate)) {
     createError.value = 'End date must be after start date.';
     return;
   }
@@ -265,24 +284,45 @@ const submitCreateEvent = async () => {
   createError.value = '';
   isCreating.value = true;
   try {
-    const newEvent = await eventsService.createEvent(props.unitId, {
-      title: newEventForm.value.title,
-      description: newEventForm.value.description,
-      startDate: new Date(newEventForm.value.startDate).toISOString(),
-      endDate: new Date(newEventForm.value.endDate).toISOString(),
-      isRecurring: newEventForm.value.isRecurring,
-      recurrencePattern: newEventForm.value.isRecurring ? newEventForm.value.recurrencePattern : null,
-      externalCalendarId: null, // Reserved for Google Calendar integration
-      invitedUnitIds: newEventForm.value.invitedUnitIds,
-      invitedUserIds: newEventForm.value.invitedUserIds,
-    });
-    events.value.push(newEvent);
-    isCreateModalOpen.value = false;
-    toastStore.showToast('Event created successfully!', 'success');
+    const payload = {
+      title: eventForm.value.title,
+      description: eventForm.value.description,
+      startDate: new Date(eventForm.value.startDate).toISOString(),
+      endDate: new Date(eventForm.value.endDate).toISOString(),
+      isRecurring: eventForm.value.isRecurring,
+      recurrencePattern: eventForm.value.isRecurring ? eventForm.value.recurrencePattern : null,
+      externalCalendarId: null,
+      invitedUnitIds: eventForm.value.invitedUnitIds,
+      invitedUserIds: eventForm.value.invitedUserIds,
+    };
+
+    if (isEditingEvent.value && editingEventId.value) {
+      const updatedEvent = await eventsService.updateEvent(props.unitId, editingEventId.value, payload);
+      const index = events.value.findIndex(e => e.id === editingEventId.value);
+      if (index !== -1) events.value[index] = updatedEvent;
+      toastStore.showToast('Event updated successfully!', 'success');
+    } else {
+      const newEvent = await eventsService.createEvent(props.unitId, payload);
+      events.value.push(newEvent);
+      toastStore.showToast('Event created successfully!', 'success');
+    }
+    isEventModalOpen.value = false;
   } catch (err: any) {
-    createError.value = err.response?.data?.error || 'Failed to create event.';
+    createError.value = err.response?.data?.error || `Failed to ${isEditingEvent.value ? 'update' : 'create'} event.`;
   } finally {
     isCreating.value = false;
+  }
+};
+
+// --- Delete (no browser confirm — inline) ---
+const handleDeleteEvent = async (event: EventDto) => {
+  try {
+    await eventsService.deleteEvent(props.unitId, event.id);
+    events.value = events.value.filter(e => e.id !== event.id);
+    confirmingDeleteId.value = null;
+    toastStore.showToast('Event deleted successfully.', 'success');
+  } catch (err: any) {
+    toastStore.showToast(err.response?.data?.error || 'Failed to delete event.', 'error');
   }
 };
 </script>
@@ -369,14 +409,6 @@ const submitCreateEvent = async () => {
                           class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-500/15 text-purple-400 border border-purple-500/20">
                           <Repeat class="w-2.5 h-2.5" /> Recurring
                         </span>
-                        <span v-if="event.targetAudience === 1"
-                          class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/20">
-                          Leadership
-                        </span>
-                        <span v-if="event.targetAudience === 2"
-                          class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/20">
-                          EB Only
-                        </span>
                       </div>
                       <h4 class="text-white font-semibold text-sm leading-tight">{{ event.title }}</h4>
                       <p v-if="event.description" class="text-xs text-gray-500 mt-0.5 line-clamp-1">{{ event.description }}</p>
@@ -393,11 +425,30 @@ const submitCreateEvent = async () => {
                     </div>
                   </div>
 
-                  <!-- Right: expand -->
-                  <button @click="toggleExpand(event.id)" class="text-gray-500 hover:text-white transition-colors flex-shrink-0 mt-1">
-                    <ChevronDown v-if="expandedEventId !== event.id" class="w-4 h-4" />
-                    <ChevronUp v-else class="w-4 h-4" />
-                  </button>
+                  <!-- Right: actions & expand -->
+                  <div class="flex items-center gap-1 flex-shrink-0">
+                    <button v-if="isLeader" @click="openEditModal(event)" class="p-1.5 text-gray-500 hover:text-emerald-400 transition-colors rounded-lg hover:bg-emerald-500/10" title="Edit Event">
+                      <Pencil class="w-4 h-4" />
+                    </button>
+                    <!-- Delete with inline confirmation -->
+                    <template v-if="isLeader">
+                      <button v-if="confirmingDeleteId !== event.id" @click="confirmingDeleteId = event.id" class="p-1.5 text-gray-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10" title="Delete Event">
+                        <Trash2 class="w-4 h-4" />
+                      </button>
+                      <div v-else class="flex items-center gap-1">
+                        <button @click="handleDeleteEvent(event)" class="px-2 py-1 text-[10px] font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30 rounded-md hover:bg-red-500/30 transition-colors">
+                          Delete
+                        </button>
+                        <button @click="confirmingDeleteId = null" class="px-2 py-1 text-[10px] font-bold uppercase text-gray-400 border border-dark-border rounded-md hover:bg-dark-border/50 transition-colors">
+                          Cancel
+                        </button>
+                      </div>
+                    </template>
+                    <button @click="toggleExpand(event.id)" class="p-1.5 text-gray-500 hover:text-white transition-colors rounded-lg hover:bg-dark-border/50">
+                      <ChevronDown v-if="expandedEventId !== event.id" class="w-4 h-4" />
+                      <ChevronUp v-else class="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <!-- RSVP Buttons -->
@@ -488,25 +539,25 @@ const submitCreateEvent = async () => {
 
   </div>
 
-  <!-- ==================== Create Event Modal ==================== -->
+  <!-- ==================== Event Modal (Create / Edit) ==================== -->
   <Teleport to="body">
-    <div v-if="isCreateModalOpen"
+    <div v-if="isEventModalOpen"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-      @click.self="isCreateModalOpen = false"
+      @click.self="isEventModalOpen = false"
     >
       <div class="bg-dark-surface border border-dark-border rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden">
         <!-- Modal Header -->
         <div class="flex items-center justify-between p-6 border-b border-dark-border">
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 bg-blue-500/10 rounded-xl flex items-center justify-center">
-              <CalendarDays class="w-5 h-5 text-blue-400" />
+            <div class="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center">
+              <CalendarDays class="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h3 class="text-white font-semibold">Create Event</h3>
-              <p class="text-xs text-gray-500">Schedule a meeting or activity for your team</p>
+              <h3 class="text-white font-semibold">{{ isEditingEvent ? 'Edit Event' : 'Create Event' }}</h3>
+              <p class="text-xs text-gray-500">{{ isEditingEvent ? 'Update event details and invitations' : 'Schedule a meeting or activity for your team' }}</p>
             </div>
           </div>
-          <button @click="isCreateModalOpen = false" class="text-gray-500 hover:text-white transition-colors">
+          <button @click="isEventModalOpen = false" class="text-gray-500 hover:text-white transition-colors">
             <X class="w-5 h-5" />
           </button>
         </div>
@@ -523,9 +574,9 @@ const submitCreateEvent = async () => {
           <div>
             <label class="block text-xs font-medium text-gray-400 mb-1.5">Event Title *</label>
             <input
-              v-model="newEventForm.title"
+              v-model="eventForm.title"
               placeholder="e.g., Weekly Team Sync"
-              class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:border-blue-500 outline-none transition-colors"
+              class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors"
             />
           </div>
 
@@ -533,10 +584,10 @@ const submitCreateEvent = async () => {
           <div>
             <label class="block text-xs font-medium text-gray-400 mb-1.5">Description</label>
             <textarea
-              v-model="newEventForm.description"
+              v-model="eventForm.description"
               placeholder="What's this event about?"
               rows="2"
-              class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:border-blue-500 outline-none transition-colors resize-none"
+              class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors resize-none"
             />
           </div>
 
@@ -545,17 +596,19 @@ const submitCreateEvent = async () => {
             <div>
               <label class="block text-xs font-medium text-gray-400 mb-1.5">Start *</label>
               <input
-                v-model="newEventForm.startDate"
+                v-model="eventForm.startDate"
                 type="datetime-local"
-                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-blue-500 outline-none transition-colors"
+                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
+                style="color-scheme: dark;"
               />
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-400 mb-1.5">End *</label>
               <input
-                v-model="newEventForm.endDate"
+                v-model="eventForm.endDate"
                 type="datetime-local"
-                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-blue-500 outline-none transition-colors"
+                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
+                style="color-scheme: dark;"
               />
             </div>
           </div>
@@ -567,8 +620,8 @@ const submitCreateEvent = async () => {
               @click="isUnitsDropdownOpen = !isUnitsDropdownOpen"
               class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white cursor-pointer flex justify-between items-center"
             >
-              <span class="text-gray-400" v-if="newEventForm.invitedUnitIds.length === 0">Select units...</span>
-              <span v-else>{{ newEventForm.invitedUnitIds.length }} unit(s) selected</span>
+              <span class="text-gray-400" v-if="eventForm.invitedUnitIds.length === 0">Select units...</span>
+              <span v-else>{{ eventForm.invitedUnitIds.length }} unit(s) selected</span>
               <ChevronDown class="w-4 h-4 text-gray-500" />
             </div>
             
@@ -593,9 +646,9 @@ const submitCreateEvent = async () => {
                 v-model="userSearchQuery"
                 @input="onUserSearch"
                 placeholder="Search by name or email..."
-                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-blue-500 outline-none transition-colors"
+                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors"
               />
-              <Loader2 v-if="isSearchingUsers" class="absolute right-3 top-2.5 w-4 h-4 text-blue-500 animate-spin" />
+              <Loader2 v-if="isSearchingUsers" class="absolute right-3 top-2.5 w-4 h-4 text-emerald-500 animate-spin" />
             </div>
             
             <!-- Search Results Dropdown -->
@@ -619,7 +672,7 @@ const submitCreateEvent = async () => {
               <span
                 v-for="user in selectedUsers"
                 :key="user.id"
-                class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400"
+                class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400"
               >
                 {{ user.firstName }} {{ user.lastName }}
                 <button @click="toggleUserInvite(user)" class="hover:text-red-400">
@@ -629,7 +682,7 @@ const submitCreateEvent = async () => {
             </div>
           </div>
 
-          <!-- Recurring toggle -->
+          <!-- Recurring toggle — styled as a clean toggle row -->
           <div class="flex items-center gap-3 p-3 bg-dark-bg rounded-lg border border-dark-border">
             <Repeat class="w-4 h-4 text-purple-400 flex-shrink-0" />
             <div class="flex-1">
@@ -637,54 +690,44 @@ const submitCreateEvent = async () => {
               <p class="text-xs text-gray-500">Repeat this event on a schedule</p>
             </div>
             <button
-              @click="newEventForm.isRecurring = !newEventForm.isRecurring"
-              class="relative w-10 h-5.5 rounded-full transition-colors flex-shrink-0 focus:outline-none"
-              :class="newEventForm.isRecurring ? 'bg-purple-500' : 'bg-dark-border'"
+              @click="eventForm.isRecurring = !eventForm.isRecurring"
+              class="relative w-10 h-5 rounded-full transition-colors flex-shrink-0 focus:outline-none"
+              :class="eventForm.isRecurring ? 'bg-purple-500' : 'bg-dark-border'"
             >
               <span class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm"
-                :class="newEventForm.isRecurring ? 'translate-x-4.5' : 'translate-x-0'" />
+                :class="eventForm.isRecurring ? 'translate-x-5' : 'translate-x-0'" />
             </button>
           </div>
 
           <!-- Recurrence Pattern (shown only if recurring) -->
-          <div v-if="newEventForm.isRecurring">
+          <div v-if="eventForm.isRecurring">
             <label class="block text-xs font-medium text-gray-400 mb-1.5">Recurrence Pattern</label>
             <select
-              v-model="newEventForm.recurrencePattern"
-              class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-blue-500 outline-none transition-colors"
+              v-model="eventForm.recurrencePattern"
+              class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
             >
               <option value="WEEKLY">Weekly</option>
               <option value="BIWEEKLY">Bi-weekly</option>
               <option value="MONTHLY">Monthly</option>
             </select>
           </div>
-
-          <!-- Google Calendar note -->
-          <div class="flex items-start gap-2 p-3 bg-blue-500/5 border border-blue-500/15 rounded-lg">
-            <CalendarDays class="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
-            <p class="text-xs text-gray-400">
-              <span class="text-blue-400 font-medium">Google Calendar sync</span> — coming soon! 
-              Events will be exportable directly to your Google Calendar.
-            </p>
-          </div>
         </div>
 
         <!-- Modal Footer -->
         <div class="flex items-center justify-end gap-3 p-6 border-t border-dark-border">
           <button
-            @click="isCreateModalOpen = false"
+            @click="isEventModalOpen = false"
             class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
           >
             Cancel
           </button>
           <button
-            @click="submitCreateEvent"
+            @click="submitEvent"
             :disabled="isCreating"
-            class="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-blue-500/20"
+            class="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/20"
           >
             <Loader2 v-if="isCreating" class="w-4 h-4 animate-spin" />
-            <CalendarDays v-else class="w-4 h-4" />
-            {{ isCreating ? 'Creating...' : 'Create Event' }}
+            {{ isEditingEvent ? 'Save Changes' : 'Create Event' }}
           </button>
         </div>
       </div>

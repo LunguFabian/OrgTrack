@@ -74,6 +74,57 @@ public class EventsController(
         }
     }
 
+    [HttpPut("{eventId:guid}")]
+    public async Task<IActionResult> UpdateEvent(Guid unitId, Guid eventId, [FromBody] UpdateEventRequest request)
+    {
+        var userId = User.GetUserId();
+        if (!await permissionService.HasPermissionAsync(userId, unitId, Permissions.EventsManage))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var ev = await eventService.UpdateEventAsync(
+                eventId,
+                request.Title,
+                request.Description,
+                request.StartDate,
+                request.EndDate,
+                request.IsRecurring,
+                request.RecurrencePattern,
+                request.ExternalCalendarId,
+                request.InvitedUnitIds,
+                request.InvitedUserIds
+            );
+            return Ok(ev);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+    }
+
+    [HttpDelete("{eventId:guid}")]
+    public async Task<IActionResult> DeleteEvent(Guid unitId, Guid eventId)
+    {
+        var userId = User.GetUserId();
+        if (!await permissionService.HasPermissionAsync(userId, unitId, Permissions.EventsManage))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            await eventService.DeleteEventAsync(eventId);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+    }
+
     [HttpPost("{eventId:guid}/rsvp")]
     public async Task<IActionResult> Rsvp(Guid unitId, Guid eventId, [FromBody] RsvpRequest request)
     {

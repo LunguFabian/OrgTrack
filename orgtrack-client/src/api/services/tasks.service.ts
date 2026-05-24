@@ -1,5 +1,5 @@
 import { api } from '../axios';
-import type { TaskDto, CreateTaskRequest } from '../../types/unit';
+import type { TaskDto, CreateTaskRequest, UpdateTaskRequest } from '../../types/unit';
 
 export const tasksService = {
   async getTasksByUnit(unitId: string): Promise<TaskDto[]> {
@@ -14,6 +14,11 @@ export const tasksService = {
 
   async createTask(unitId: string, data: CreateTaskRequest): Promise<TaskDto> {
     const res = await api.post<TaskDto>(`/organization/units/${unitId}/tasks`, data);
+    return res.data;
+  },
+
+  async updateTask(unitId: string, taskId: string, data: UpdateTaskRequest): Promise<TaskDto> {
+    const res = await api.put<TaskDto>(`/organization/units/${unitId}/tasks/${taskId}`, data);
     return res.data;
   },
 

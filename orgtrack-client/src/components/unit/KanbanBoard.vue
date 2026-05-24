@@ -117,22 +117,26 @@ const onDrop = async (event: DragEvent, newStatus: string) => {
   }
 };
 
-const handleDeleteTask = async (task: TaskDto) => {
-  if (!confirm(`Are you sure you want to delete the task "${task.title}"?`)) return;
+const confirmingDeleteTaskId = ref<string | null>(null);
 
+const handleDeleteTask = async (task: TaskDto) => {
   try {
     await tasksService.deleteTask(task.organizationUnitId, task.id);
     tasks.value = tasks.value.filter(t => t.id !== task.id);
+    confirmingDeleteTaskId.value = null;
     toastStore.showToast('Task deleted successfully.', 'success');
   } catch (err: any) {
     console.error('Failed to delete task', err);
     toastStore.showToast(err.response?.data?.error || 'Failed to delete task.', 'error');
   }
 };
-const isCreateModalOpen = ref(false);
+const isTaskModalOpen = ref(false);
+const isEditingTask = ref(false);
+const editingTaskId = ref<string | null>(null);
+
 const isCreating = ref(false);
 const createError = ref('');
-const newTaskForm = ref({
+const taskForm = ref({
   title: '',
   description: '',
   priority: 'Medium',
@@ -145,11 +149,13 @@ const minDateTime = ref('');
 
 const openCreateModal = () => {
   createError.value = '';
+  isEditingTask.value = false;
+  editingTaskId.value = null;
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   minDateTime.value = now.toISOString().slice(0, 16);
 
-  newTaskForm.value = {
+  taskForm.value = {
     title: '',
     description: '',
     priority: 'Medium',
@@ -157,23 +163,42 @@ const openCreateModal = () => {
     deadline: '',
     targetUnitId: props.mode === 'unit' ? props.unitId! : ''
   };
-  isCreateModalOpen.value = true;
+  isTaskModalOpen.value = true;
 };
 
-const submitCreateTask = async () => {
-  if (!newTaskForm.value.title || !newTaskForm.value.description) {
+const openEditModal = (task: TaskDto) => {
+  createError.value = '';
+  isEditingTask.value = true;
+  editingTaskId.value = task.id;
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  minDateTime.value = now.toISOString().slice(0, 16);
+
+  taskForm.value = {
+    title: task.title,
+    description: task.description || '',
+    priority: task.priority,
+    assigneeId: task.assigneeId || null,
+    deadline: task.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : null,
+    targetUnitId: task.organizationUnitId
+  };
+  isTaskModalOpen.value = true;
+};
+
+const submitTask = async () => {
+  if (!taskForm.value.title || !taskForm.value.description) {
     createError.value = 'Title and description are required.';
     return;
   }
 
-  if (props.mode === 'me' && !newTaskForm.value.targetUnitId) {
+  if (props.mode === 'me' && !taskForm.value.targetUnitId && !isEditingTask.value) {
     createError.value = 'Please select a unit for this task.';
     return;
   }
   
-  if (newTaskForm.value.deadline) {
-    const selectedDate = new Date(newTaskForm.value.deadline);
-    if (selectedDate < new Date()) {
+  if (taskForm.value.deadline) {
+    const selectedDate = new Date(taskForm.value.deadline);
+    if (selectedDate < new Date() && !isEditingTask.value) {
       createError.value = 'The deadline cannot be set in the past.';
       return;
     }
@@ -184,20 +209,28 @@ const submitCreateTask = async () => {
   
   try {
     const payload = {
-      title: newTaskForm.value.title,
-      description: newTaskForm.value.description,
-      priority: newTaskForm.value.priority,
-      assigneeId: newTaskForm.value.assigneeId || null,
-      deadline: newTaskForm.value.deadline ? new Date(newTaskForm.value.deadline).toISOString() : null
+      title: taskForm.value.title,
+      description: taskForm.value.description,
+      priority: taskForm.value.priority,
+      assigneeId: taskForm.value.assigneeId || null,
+      deadline: taskForm.value.deadline ? new Date(taskForm.value.deadline).toISOString() : null
     };
     
-    const unitToCreateIn = props.mode === 'me' ? newTaskForm.value.targetUnitId : props.unitId!;
-    const newTask = await tasksService.createTask(unitToCreateIn, payload);
-    tasks.value.push(newTask);
-    isCreateModalOpen.value = false;
-    toastStore.showToast('Task created successfully.', 'success');
+    if (isEditingTask.value && editingTaskId.value) {
+      const updatedTask = await tasksService.updateTask(taskForm.value.targetUnitId, editingTaskId.value, payload);
+      const index = tasks.value.findIndex(t => t.id === editingTaskId.value);
+      if (index !== -1) tasks.value[index] = updatedTask;
+      toastStore.showToast('Task updated successfully.', 'success');
+    } else {
+      const unitToCreateIn = props.mode === 'me' ? taskForm.value.targetUnitId : props.unitId!;
+      const newTask = await tasksService.createTask(unitToCreateIn, payload);
+      tasks.value.push(newTask);
+      toastStore.showToast('Task created successfully.', 'success');
+    }
+    
+    isTaskModalOpen.value = false;
   } catch (err: any) {
-    createError.value = err.response?.data?.error || 'Failed to create task.';
+    createError.value = err.response?.data?.error || `Failed to ${isEditingTask.value ? 'update' : 'create'} task.`;
     console.error(err);
   } finally {
     isCreating.value = false;
@@ -270,8 +303,12 @@ const submitCreateTask = async () => {
               v-for="task in tasksByColumn[column.id]"
               :key="task.id"
               :task="task"
+              :confirmingDelete="confirmingDeleteTaskId === task.id"
               @dragstart="onDragStart($event, task, column.id)"
-              @delete="handleDeleteTask"
+              @request-delete="confirmingDeleteTaskId = task.id"
+              @confirm-delete="handleDeleteTask"
+              @cancel-delete="confirmingDeleteTaskId = null"
+              @edit="openEditModal"
               :class="task.status === 'Done' ? 'opacity-70 cursor-not-allowed' : ''"
               :draggable="task.status !== 'Done'"
             />
@@ -287,12 +324,12 @@ const submitCreateTask = async () => {
       </div>
     </div>
 
-    <!-- Create Task Modal -->
-    <div v-if="isCreateModalOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <!-- Task Modal -->
+    <div v-if="isTaskModalOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div class="bg-dark-surface border border-dark-border rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div class="p-6 border-b border-dark-border flex items-center justify-between flex-shrink-0">
-          <h3 class="text-lg font-bold text-white">Create New Task</h3>
-          <button @click="isCreateModalOpen = false" class="text-gray-400 hover:text-white transition-colors">✕</button>
+          <h3 class="text-lg font-bold text-white">{{ isEditingTask ? 'Edit Task' : 'Create New Task' }}</h3>
+          <button @click="isTaskModalOpen = false" class="text-gray-400 hover:text-white transition-colors">✕</button>
         </div>
         
         <div class="p-6 overflow-y-auto custom-scrollbar">
@@ -303,18 +340,18 @@ const submitCreateTask = async () => {
           <div class="space-y-4">
             <div>
               <label class="block text-xs font-medium text-gray-400 mb-1.5">Task Title *</label>
-              <input v-model="newTaskForm.title" type="text" placeholder="E.g. Prepare marketing materials" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors" />
+              <input v-model="taskForm.title" type="text" placeholder="E.g. Prepare marketing materials" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors" />
             </div>
             
             <div>
               <label class="block text-xs font-medium text-gray-400 mb-1.5">Description *</label>
-              <textarea v-model="newTaskForm.description" rows="3" placeholder="Add more details about what needs to be done..." class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors resize-none"></textarea>
+              <textarea v-model="taskForm.description" rows="3" placeholder="Add more details about what needs to be done..." class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors resize-none"></textarea>
             </div>
             
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-medium text-gray-400 mb-1.5">Priority</label>
-                <select v-model="newTaskForm.priority" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors">
+                <select v-model="taskForm.priority" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors">
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
                   <option value="High">High</option>
@@ -324,13 +361,13 @@ const submitCreateTask = async () => {
               
               <div>
                 <label class="block text-xs font-medium text-gray-400 mb-1.5">Deadline (Optional)</label>
-                <input v-model="newTaskForm.deadline" type="datetime-local" :min="minDateTime" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors" style="color-scheme: dark;" />
+                <input v-model="taskForm.deadline" type="datetime-local" :min="minDateTime" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors" style="color-scheme: dark;" />
               </div>
             </div>
             
             <div>
               <label class="block text-xs font-medium text-gray-400 mb-1.5">Assignee (Optional)</label>
-              <select v-model="newTaskForm.assigneeId" :disabled="props.mode === 'me'" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
+              <select v-model="taskForm.assigneeId" :disabled="props.mode === 'me'" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
                 <option value="">Unassigned</option>
                 <option v-for="member in props.members" :key="member.userId" :value="member.userId">
                   {{ member.firstName }} {{ member.lastName }} ({{ member.roleName }})
@@ -343,7 +380,7 @@ const submitCreateTask = async () => {
             <!-- Unit selection only in 'me' mode -->
             <div v-if="props.mode === 'me'">
               <label class="block text-xs font-medium text-gray-400 mb-1.5">Target Unit *</label>
-              <select v-model="newTaskForm.targetUnitId" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors">
+              <select v-model="taskForm.targetUnitId" :disabled="isEditingTask" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
                 <option value="" disabled>Select the unit for this task...</option>
                 <option v-for="unit in myUnits" :key="unit.id" :value="unit.id">
                   {{ unit.name }}
@@ -353,11 +390,17 @@ const submitCreateTask = async () => {
           </div>
         </div>
         
-        <div class="p-6 border-t border-dark-border flex justify-end gap-3 flex-shrink-0 bg-dark-surface/50">
-          <button @click="isCreateModalOpen = false" :disabled="isCreating" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white transition-colors disabled:opacity-50">Cancel</button>
-          <button @click="submitCreateTask" :disabled="isCreating || !newTaskForm.title || !newTaskForm.description" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:hover:bg-emerald-600 flex items-center gap-2">
+        <div class="p-6 border-t border-dark-border flex items-center justify-end gap-3 flex-shrink-0 bg-dark-surface">
+          <button @click="isTaskModalOpen = false" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors">
+            Cancel
+          </button>
+          <button 
+            @click="submitTask" 
+            :disabled="isCreating"
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+          >
             <span v-if="isCreating" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            Create Task
+            {{ isEditingTask ? 'Save Changes' : 'Create Task' }}
           </button>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 import { organizationService } from '../api/services/organization.service';
 import { analyticsService, type MemberActivityScoreDto } from '../api/services/analytics.service';
 import type { OrganizationUnitDto } from '../types/organization';
-import { User, Activity, CheckSquare, CalendarCheck, Shield, Building2, MapPin, Mail, Loader2, ArrowLeft } from 'lucide-vue-next';
+import { Activity, CheckSquare, CalendarCheck, Shield, Building2, Mail, Loader2, ArrowLeft } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 
 const authStore = useAuthStore();

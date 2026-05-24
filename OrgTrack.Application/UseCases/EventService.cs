@@ -52,6 +52,54 @@ public class EventService(
         return MapToDto(newEvent);
     }
 
+    public async Task<EventDto> UpdateEventAsync(
+        Guid eventId, string title, string description, DateTime startDate, DateTime endDate,
+        bool isRecurring, string? recurrencePattern, string? externalCalendarId,
+        List<Guid>? invitedUnitIds = null, List<Guid>? invitedUserIds = null)
+    {
+        var ev = await eventRepository.GetByIdAsync(eventId);
+        if (ev == null) throw new ArgumentException("Event not found.");
+
+        if (endDate <= startDate)
+            throw new ArgumentException("End date must be after the start date.");
+
+        ev.Title = title;
+        ev.Description = description;
+        ev.StartDate = startDate;
+        ev.EndDate = endDate;
+        ev.IsRecurring = isRecurring;
+        ev.RecurrencePattern = recurrencePattern;
+        ev.ExternalCalendarId = externalCalendarId;
+        ev.UpdatedAt = DateTime.UtcNow;
+
+        ev.InvitedUnits.Clear();
+        var targetUnits = invitedUnitIds != null && invitedUnitIds.Any() ? invitedUnitIds : new List<Guid> { ev.OrganizationUnitId };
+        foreach (var uId in targetUnits)
+        {
+            ev.InvitedUnits.Add(new EventInvitedUnit { OrganizationUnitId = uId, EventId = ev.Id });
+        }
+
+        ev.InvitedUsers.Clear();
+        if (invitedUserIds != null)
+        {
+            foreach (var uId in invitedUserIds)
+            {
+                ev.InvitedUsers.Add(new EventInvitedUser { UserId = uId, EventId = ev.Id });
+            }
+        }
+
+        await eventRepository.UpdateAsync(ev);
+        return MapToDto(ev);
+    }
+
+    public async Task DeleteEventAsync(Guid eventId)
+    {
+        var ev = await eventRepository.GetByIdAsync(eventId);
+        if (ev == null) throw new ArgumentException("Event not found.");
+
+        await eventRepository.DeleteAsync(ev);
+    }
+
     public async Task<IEnumerable<EventDto>> GetEventsByUnitAsync(Guid unitId, Guid userId)
     {
         var events = await eventRepository.GetByUnitIdAsync(unitId);

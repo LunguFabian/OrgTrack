@@ -5,9 +5,9 @@ import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { useOrgStore } from '../stores/orgStore';
 import {
-  CalendarDays, Plus, Clock, MapPin, Users, CheckCircle2,
+  CalendarDays, Clock, Users, CheckCircle2,
   XCircle, HelpCircle, ChevronDown, ChevronUp, Loader2,
-  Calendar, Repeat, AlarmClock
+  Calendar, Repeat, AlarmClock, Network
 } from 'lucide-vue-next';
 
 const authStore = useAuthStore();
@@ -117,9 +117,8 @@ const submitRsvp = async (event: EventDto, status: 'Present' | 'Absent' | 'Maybe
   }
 };
 const isLeaderOfEvent = (unitId: string) => {
-  const authStore = useAuthStore();
-  const role = authStore.userRoles.find(r => r.unitId === unitId);
-  return role?.roleName === 'VP' || role?.roleName === 'TL';
+  const role = (authStore.user as any)?.unitRoles?.find((r: any) => r.organizationUnitId === unitId);
+  return role?.role?.name?.includes('VP') || role?.role?.name?.includes('TL');
 };
 
 const toggleExpand = async (event: EventDto) => {

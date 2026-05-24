@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { 
   LayoutDashboard, 
   Network, 
   CalendarDays, 
   CheckSquare, 
-  Settings,
   X
 } from 'lucide-vue-next';
 

@@ -88,6 +88,42 @@ public class TaskService(
         return MapToDto(task);
     }
 
+    public async Task<TaskDto> UpdateTaskAsync(
+        Guid taskId, string title, string description, TaskPriority priority, 
+        Guid? assigneeId, DateTime? deadline, Guid requestingUserId, bool hasManagePermission)
+    {
+        var task = await taskRepository.GetByIdAsync(taskId);
+        if (task == null) throw new ArgumentException("Task not found.");
+
+        if (task.Status == TaskStatus.Done)
+        {
+            throw new InvalidOperationException("Tasks marked as 'Done' cannot be edited.");
+        }
+
+        if (!hasManagePermission && task.CreatorId != requestingUserId)
+        {
+            throw new InvalidOperationException("You can only edit tasks created by you.");
+        }
+
+        if (assigneeId.HasValue && assigneeId != task.AssigneeId)
+        {
+            var membership = await unitRepository.GetUserUnitRoleAsync(assigneeId.Value, task.OrganizationUnitId);
+            if (membership == null)
+                throw new ArgumentException("Assignee must be a member of this organization unit.");
+        }
+
+        task.Title = title;
+        task.Description = description;
+        task.Priority = priority;
+        task.AssigneeId = assigneeId;
+        task.Deadline = deadline;
+        task.UpdatedAt = DateTime.UtcNow;
+
+        await taskRepository.UpdateAsync(task);
+
+        return MapToDto(task);
+    }
+
     public async Task DeleteTaskAsync(Guid taskId, Guid requestingUserId, bool hasManagePermission)
     {
         var task = await taskRepository.GetByIdAsync(taskId);

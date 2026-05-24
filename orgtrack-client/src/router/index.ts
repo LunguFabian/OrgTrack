@@ -63,7 +63,7 @@ const router = createRouter({
     }
   ]
 });
-router.beforeEach((to, from) => {
+router.beforeEach((to) => {
   const authStore = useAuthStore();
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {

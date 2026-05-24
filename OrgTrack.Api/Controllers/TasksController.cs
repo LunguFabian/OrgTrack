@@ -109,6 +109,42 @@ public class TasksController(
         }
     }
 
+    [HttpPut("{taskId:guid}")]
+    public async Task<IActionResult> UpdateTask(Guid unitId, Guid taskId, [FromBody] UpdateTaskRequest request)
+    {
+        var userId = User.GetUserId();
+        bool hasManagePermission = await permissionService.HasPermissionAsync(userId, unitId, Permissions.TasksManage);
+        bool hasViewOwnPermission = await permissionService.HasPermissionAsync(userId, unitId, "Tasks.ViewOwn");
+
+        if (!hasManagePermission && !hasViewOwnPermission)
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var updatedTask = await taskService.UpdateTaskAsync(
+                taskId,
+                request.Title,
+                request.Description,
+                request.Priority,
+                request.AssigneeId,
+                request.Deadline,
+                userId,
+                hasManagePermission
+            );
+            return Ok(updatedTask);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpDelete("{taskId:guid}")]
     public async Task<IActionResult> DeleteTask(Guid unitId, Guid taskId)
     {

@@ -10,7 +10,7 @@ public class PermissionService(OrgTrackDbContext context) : IPermissionService
     public async Task<bool> HasPermissionAsync(Guid userId, Guid targetUnitId, string requiredPermission)
     {
         var user = await context.Users.FindAsync(userId);
-        if (user != null && user.Email == "admin@aiesec.ro") 
+        if (user != null && Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" && user.Email == "admin@aiesec.ro") 
         {
             return true;
         }
@@ -67,7 +67,7 @@ public class PermissionService(OrgTrackDbContext context) : IPermissionService
     public async Task<bool> IsDirectMemberAsync(Guid userId, Guid unitId)
     {
         var user = await context.Users.FindAsync(userId);
-        if (user != null && user.Email == "admin@aiesec.ro") return true;
+        if (user != null && Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" && user.Email == "admin@aiesec.ro") return true;
 
         return await context.UserUnitRoles
             .AnyAsync(uur => uur.UserId == userId && uur.OrganizationUnitId == unitId);

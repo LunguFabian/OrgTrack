@@ -14,3 +14,11 @@ public record CreateTaskRequest(
 public record UpdateTaskStatusRequest(
     TaskStatus NewStatus
 );
+
+public record UpdateTaskRequest(
+    string Title,
+    string Description,
+    TaskPriority Priority,
+    Guid? AssigneeId,
+    DateTime? Deadline
+);
