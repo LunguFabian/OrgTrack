@@ -148,7 +148,7 @@ const roleColor = (role: string) => {
   if (role.includes('National')) return 'bg-blue-500/15 text-blue-400 border-blue-500/20';
   if (role.includes('President')) return 'bg-purple-500/15 text-purple-400 border-purple-500/20';
   if (role.includes('Leader')) return 'bg-orange-500/15 text-orange-400 border-orange-500/20';
-  return 'bg-gray-500/15 text-gray-400 border-gray-500/20';
+  return 'bg-gray-500/15 text-text-muted border-gray-500/20';
 };
 
 const initials = (m: UnitMemberDto) =>
@@ -164,8 +164,8 @@ const formatDate = (iso: string) =>
     <!-- Members Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <Users class="w-5 h-5 text-gray-400" />
-        <span class="text-white font-semibold">{{ members.length }} Member{{ members.length !== 1 ? 's' : '' }}</span>
+        <Users class="w-5 h-5 text-text-muted" />
+        <span class="text-text-strong font-semibold">{{ members.length }} Member{{ members.length !== 1 ? 's' : '' }}</span>
       </div>
       <button
         @click="showInviteForm = !showInviteForm"
@@ -177,8 +177,8 @@ const formatDate = (iso: string) =>
     </div>
 
     <!-- Invite Link Generator Panel -->
-    <div v-if="showInviteForm" class="bg-dark-bg border border-emerald-500/20 rounded-2xl p-5 space-y-4">
-      <h4 class="text-white font-semibold flex items-center gap-2">
+    <div v-if="showInviteForm" class="bg-bg border border-emerald-500/20 rounded-2xl p-5 space-y-4">
+      <h4 class="text-text-strong font-semibold flex items-center gap-2">
         <Link2 class="w-4 h-4 text-emerald-400" />
         New Invite Link
       </h4>
@@ -189,21 +189,21 @@ const formatDate = (iso: string) =>
         </div>
 
         <!-- Info: invite links are Member-only -->
-        <div class="flex items-start gap-2 p-3 bg-dark-surface border border-dark-border rounded-lg text-xs text-gray-400">
+        <div class="flex items-start gap-2 p-3 bg-surface border border-border rounded-lg text-xs text-text-muted">
           <Shield class="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-          <span>Invite links always assign the <strong class="text-white">Member</strong> role. To grant leadership roles (TL, VP, LCP…), use <strong class="text-white">Assign Role</strong> on an existing member.</span>
+          <span>Invite links always assign the <strong class="text-text-strong">Member</strong> role. To grant leadership roles (TL, VP, LCP…), use <strong class="text-text-strong">Assign Role</strong> on an existing member.</span>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-medium text-gray-400 mb-1.5">Expires in (hours)</label>
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Expires in (hours)</label>
             <input v-model.number="inviteForm.expiresInHours" type="number" min="1" max="720"
-              class="w-full px-3 py-2 bg-dark-surface border border-dark-border rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
+              class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-text-strong text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-400 mb-1.5">Max uses</label>
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Max uses</label>
             <input v-model.number="inviteForm.maxUses" type="number" min="1" max="500"
-              class="w-full px-3 py-2 bg-dark-surface border border-dark-border rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
+              class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-text-strong text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
           </div>
         </div>
 
@@ -214,7 +214,7 @@ const formatDate = (iso: string) =>
             <Link2 v-else class="w-4 h-4" />
             {{ isGenerating ? 'Generating...' : 'Generate' }}
           </button>
-          <button @click="resetInviteForm" class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white transition-colors">
+          <button @click="resetInviteForm" class="px-4 py-2 rounded-lg text-sm text-text-muted hover:text-text-strong transition-colors">
             Cancel
           </button>
         </div>
@@ -226,19 +226,19 @@ const formatDate = (iso: string) =>
           <Check class="w-4 h-4" />
           Link generated successfully!
         </div>
-        <div class="flex items-center gap-2 bg-dark-surface border border-dark-border rounded-lg px-4 py-3">
-          <span class="flex-1 text-sm text-gray-300 truncate font-mono">{{ generatedLink.inviteUrl }}</span>
+        <div class="flex items-center gap-2 bg-surface border border-border rounded-lg px-4 py-3">
+          <span class="flex-1 text-sm text-text-muted truncate font-mono">{{ generatedLink.inviteUrl }}</span>
           <button @click="copyLink" class="flex-shrink-0 flex items-center gap-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
             <Check v-if="copied" class="w-4 h-4" />
             <Copy v-else class="w-4 h-4" />
             {{ copied ? 'Copied!' : 'Copy' }}
           </button>
         </div>
-        <div class="flex items-center gap-2 text-xs text-gray-500">
+        <div class="flex items-center gap-2 text-xs text-text-muted">
           <Clock class="w-3.5 h-3.5" />
           Expires: {{ formatDate(generatedLink.expiresAt) }}
         </div>
-        <button @click="resetInviteForm" class="text-sm text-gray-400 hover:text-white transition-colors">
+        <button @click="resetInviteForm" class="text-sm text-text-muted hover:text-text-strong transition-colors">
           Generate another link
         </button>
       </div>
@@ -246,38 +246,44 @@ const formatDate = (iso: string) =>
 
     <!-- Loading State -->
     <div v-if="isLoading" class="space-y-3">
-      <div v-for="i in 3" :key="i" class="h-16 bg-dark-bg rounded-xl animate-pulse"></div>
+      <div v-for="i in 3" :key="i" class="h-16 bg-bg rounded-xl animate-pulse"></div>
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="members.length === 0" class="text-center py-12 border-2 border-dashed border-dark-border rounded-xl">
+    <div v-else-if="members.length === 0" class="text-center py-12 border-2 border-dashed border-border rounded-xl">
       <Users class="w-10 h-10 text-gray-600 mx-auto mb-3" />
-      <p class="text-gray-400 font-medium">No members yet</p>
+      <p class="text-text-muted font-medium">No members yet</p>
       <p class="text-gray-600 text-sm mt-1">Generate an invite link to add the first member.</p>
     </div>
 
     <!-- Members Table -->
-    <div v-else class="overflow-hidden rounded-xl border border-dark-border">
+    <div v-else class="overflow-hidden rounded-xl border border-border">
       <table class="w-full">
         <thead>
-          <tr class="bg-dark-bg border-b border-dark-border">
-            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
-            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Joined</th>
-            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          <tr class="bg-bg border-b border-border">
+            <th class="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">Member</th>
+            <th class="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">Role</th>
+            <th class="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider hidden sm:table-cell">Joined</th>
+            <th class="px-4 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-dark-border">
-          <tr v-for="member in members" :key="member.userId" class="hover:bg-dark-bg/50 transition-colors">
+          <tr v-for="member in members" :key="member.userId" class="hover:bg-bg/50 transition-colors">
             <!-- Avatar + Name -->
             <td class="px-4 py-3">
               <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                <img 
+                  v-if="member.pictureUrl"
+                  :src="member.pictureUrl"
+                  alt="Member Avatar"
+                  class="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                />
+                <div v-else class="w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm flex-shrink-0">
                   {{ initials(member) }}
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-white">{{ member.firstName }} {{ member.lastName }}</p>
-                  <p class="text-xs text-gray-500 flex items-center gap-1">
+                  <p class="text-sm font-medium text-text-strong">{{ member.firstName }} {{ member.lastName }}</p>
+                  <p class="text-xs text-text-muted flex items-center gap-1">
                     <Mail class="w-3 h-3" />{{ member.email }}
                   </p>
                 </div>
@@ -289,13 +295,13 @@ const formatDate = (iso: string) =>
                 <span :class="['px-2.5 py-1 rounded-md text-xs font-medium border', roleColor(member.roleName)]">
                   {{ member.roleName }}
                 </span>
-                <span v-if="member.unitName && member.roleName !== 'Member'" class="text-xs font-medium text-gray-400 bg-dark-bg border border-dark-border px-2 py-0.5 rounded-md flex items-center gap-1">
+                <span v-if="member.unitName && member.roleName !== 'Member'" class="text-xs font-medium text-text-muted bg-bg border border-border px-2 py-0.5 rounded-md flex items-center gap-1">
                   {{ member.unitName }}
                 </span>
               </div>
             </td>
             <!-- Date -->
-            <td class="px-4 py-3 text-xs text-gray-500 hidden sm:table-cell">
+            <td class="px-4 py-3 text-xs text-text-muted hidden sm:table-cell">
               <div class="flex items-center gap-1.5">
                 <Calendar class="w-3.5 h-3.5" />
                 {{ formatDate(member.joinedAt) }}
@@ -328,29 +334,29 @@ const formatDate = (iso: string) =>
     <!-- Assign Role Modal -->
     <div v-if="assignRoleModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="assignRoleModal.open = false"></div>
-      <div class="relative bg-dark-surface border border-dark-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
-        <h3 class="text-lg font-bold text-white">Assign Role</h3>
-        <p class="text-sm text-gray-400">
-          Assigning a new role to <strong class="text-white">{{ assignRoleModal.member?.firstName }} {{ assignRoleModal.member?.lastName }}</strong>.
+      <div class="relative bg-surface border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
+        <h3 class="text-lg font-bold text-text-strong">Assign Role</h3>
+        <p class="text-sm text-text-muted">
+          Assigning a new role to <strong class="text-text-strong">{{ assignRoleModal.member?.firstName }} {{ assignRoleModal.member?.lastName }}</strong>.
         </p>
         <div>
-          <label class="block text-xs font-medium text-gray-400 mb-1.5">Select Role</label>
-          <select v-model="selectedRole" class="w-full px-3 py-2.5 bg-dark-bg border border-dark-border rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors">
+          <label class="block text-xs font-medium text-text-muted mb-1.5">Select Role</label>
+          <select v-model="selectedRole" class="w-full px-3 py-2.5 bg-bg border border-border rounded-lg text-text-strong text-sm focus:outline-none focus:border-emerald-500 transition-colors">
             <option v-for="role in leadershipRoles" :key="role.value" :value="role.value">{{ role.label }}</option>
           </select>
         </div>
 
         <!-- Select Target Unit (if options exist) -->
         <div v-if="availableTargetUnits.length > 0" class="mb-4">
-          <label class="block text-xs text-gray-500 font-medium mb-1.5">Destination Unit *</label>
-          <select v-model="selectedTargetUnitId" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500 transition-colors">
+          <label class="block text-xs text-text-muted font-medium mb-1.5">Destination Unit *</label>
+          <select v-model="selectedTargetUnitId" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong outline-none focus:border-emerald-500 transition-colors">
             <option value="" disabled>Select destination...</option>
             <option v-for="u in availableTargetUnits" :key="u.id" :value="u.id">{{ u.name }}</option>
           </select>
         </div>
 
         <div class="flex justify-end gap-3 pt-2">
-          <button @click="assignRoleModal.open = false" :disabled="isAssigningRole" class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50">Cancel</button>
+          <button @click="assignRoleModal.open = false" :disabled="isAssigningRole" class="px-4 py-2 rounded-lg text-sm text-text-muted hover:text-text-strong transition-colors disabled:opacity-50">Cancel</button>
           <button @click="confirmAssignRole" :disabled="isAssigningRole || (availableTargetUnits.length > 0 && !selectedTargetUnitId)" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-50 disabled:hover:bg-emerald-600">
             <span v-if="isAssigningRole" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
             {{ isAssigningRole ? 'Saving...' : 'Save Role' }}

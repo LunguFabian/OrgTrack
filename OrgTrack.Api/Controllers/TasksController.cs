@@ -71,7 +71,9 @@ public class TasksController(
                 unitId,
                 request.AssigneeId,
                 request.Deadline,
-                userId
+                userId,
+                request.ParentTaskId,
+                request.Status
             );
 
             return CreatedAtAction(nameof(GetTasks), new { unitId }, task);
@@ -131,7 +133,8 @@ public class TasksController(
                 request.AssigneeId,
                 request.Deadline,
                 userId,
-                hasManagePermission
+                hasManagePermission,
+                request.ParentTaskId
             );
             return Ok(updatedTask);
         }

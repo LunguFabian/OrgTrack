@@ -1,9 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  --color-dark-bg: #0f172a;
-  --color-dark-surface: #1e293b;
-  --color-dark-border: #334155;
+  --color-bg: var(--theme-bg);
+  --color-surface: var(--theme-surface);
+  --color-surface-hover: var(--theme-surface-hover);
+  --color-border: var(--theme-border);
+  --color-text: var(--theme-text);
+  --color-text-muted: var(--theme-text-muted);
+  --color-text-strong: var(--theme-text-strong);
+
   --color-emerald-400: #34d399;
   --color-emerald-500: #10b981;
   --color-emerald-600: #059669;
@@ -13,9 +18,29 @@
   --font-sans: "Inter", sans-serif;
 }
 
+:root {
+  --theme-bg: #f9fafb; /* gri foarte deschis */
+  --theme-surface: #ffffff; /* alb pur */
+  --theme-surface-hover: #f3f4f6;
+  --theme-border: #e5e7eb;
+  --theme-text: #374151; /* gri inchis pentru lizibilitate optima */
+  --theme-text-muted: #6b7280;
+  --theme-text-strong: #111827; /* aproape negru pentru titluri */
+}
+
+.dark {
+  --theme-bg: #0f172a;
+  --theme-surface: #1e293b;
+  --theme-surface-hover: #334155;
+  --theme-border: #334155;
+  --theme-text: #e5e7eb;
+  --theme-text-muted: #9ca3af;
+  --theme-text-strong: #ffffff;
+}
+
 body {
-  background-color: var(--color-dark-bg);
-  color: #e5e7eb;
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: var(--font-sans);

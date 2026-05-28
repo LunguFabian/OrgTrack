@@ -31,5 +31,6 @@ public record UnitMemberDto(
     string RoleName,
     DateTime JoinedAt,
     string? UnitName = null,
-    Guid? UnitId = null
+    Guid? UnitId = null,
+    string? PictureUrl = null
 );

@@ -43,11 +43,15 @@ public class AnalyticsService(
         var unit = await unitRepository.GetByIdAsync(unitId);
         if (unit == null) throw new ArgumentException("Unit not found.");
 
+        var descendantIds = await unitRepository.GetDescendantUnitIdsAsync(unitId);
+        var allIds = new List<Guid> { unitId };
+        allIds.AddRange(descendantIds);
+
         var logs = await activityLogRepository.GetByUnitIdAsync(unitId, limit: 1000);
 
-        var tasksDone = await context.Tasks.CountAsync(t => t.OrganizationUnitId == unitId && t.Status == TaskStatus.Done);
-        var eventsHeld = await context.Events.CountAsync(e => e.OrganizationUnitId == unitId);
-        var membersActive = await context.UserUnitRoles.CountAsync(m => m.OrganizationUnitId == unitId);
+        var tasksDone = await context.Tasks.CountAsync(t => allIds.Contains(t.OrganizationUnitId) && t.Status == TaskStatus.Done);
+        var eventsHeld = await context.Events.CountAsync(e => allIds.Contains(e.OrganizationUnitId));
+        var membersActive = await context.UserUnitRoles.CountAsync(m => allIds.Contains(m.OrganizationUnitId));
         
         var recentLogs = logs
             .Take(20)

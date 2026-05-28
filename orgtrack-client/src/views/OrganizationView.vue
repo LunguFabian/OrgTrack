@@ -26,14 +26,14 @@ const handleAddChild = (payload: { id: string | null; type?: string }) => {
 <template>
   <div class="space-y-6 max-w-4xl mx-auto pb-20">
     <!-- Header -->
-    <div class="flex items-center justify-between bg-dark-surface p-6 rounded-2xl border border-dark-border shadow-sm">
+    <div class="flex items-center justify-between bg-surface p-6 rounded-2xl border border-border shadow-sm">
       <div class="flex items-center gap-4">
         <div class="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">
           <Network class="w-6 h-6" />
         </div>
         <div>
-          <h1 class="text-2xl font-bold text-white tracking-tight">Organization Structure</h1>
-          <p class="text-gray-400 text-sm mt-1">Manage all committees, departments, and teams.</p>
+          <h1 class="text-2xl font-bold text-text-strong tracking-tight">Organization Structure</h1>
+          <p class="text-text-muted text-sm mt-1">Manage all committees, departments, and teams.</p>
         </div>
       </div>
       <button 
@@ -49,7 +49,7 @@ const handleAddChild = (payload: { id: string | null; type?: string }) => {
     <div v-if="orgStore.isLoading" class="flex justify-center py-20">
       <div class="animate-pulse flex flex-col items-center gap-4">
         <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-gray-400">Loading organization tree...</p>
+        <p class="text-text-muted">Loading organization tree...</p>
       </div>
     </div>
 
@@ -60,9 +60,9 @@ const handleAddChild = (payload: { id: string | null; type?: string }) => {
 
     <!-- Tree View -->
     <div v-else class="pt-4 pl-2">
-      <div v-if="orgStore.tree.length === 0" class="text-center py-12 border-2 border-dashed border-dark-border rounded-xl">
+      <div v-if="orgStore.tree.length === 0" class="text-center py-12 border-2 border-dashed border-border rounded-xl">
         <Network class="w-12 h-12 text-gray-600 mx-auto mb-3" />
-        <p class="text-gray-400">No organizational units found.</p>
+        <p class="text-text-muted">No organizational units found.</p>
         <button class="mt-4 text-emerald-400 hover:underline">Create the first one</button>
       </div>
       

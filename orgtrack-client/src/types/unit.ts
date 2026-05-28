@@ -7,6 +7,7 @@ export interface UnitMemberDto {
   joinedAt: string;
   unitName?: string;
   unitId?: string;
+  pictureUrl?: string;
 }
 
 export interface InviteLinkCreatedDto {
@@ -27,6 +28,7 @@ export interface TaskDto {
   assigneeId?: string;
   creatorName: string;
   createdAt: string;
+  parentTaskId?: string;
 }
 
 export interface CreateTaskRequest {
@@ -35,6 +37,8 @@ export interface CreateTaskRequest {
   priority: string;
   assigneeId?: string | null;
   deadline?: string | null;
+  parentTaskId?: string | null;
+  status?: string;
 }
 
 export interface UpdateTaskRequest {
@@ -43,6 +47,7 @@ export interface UpdateTaskRequest {
   priority: string;
   assigneeId?: string | null;
   deadline?: string | null;
+  parentTaskId?: string | null;
 }
 
 export interface EventDto {
@@ -54,6 +59,8 @@ export interface EventDto {
   isRecurring: boolean;
   recurrencePattern?: string;
   organizationUnitId: string;
+  invitedUnitIds?: string[];
+  invitedUserIds?: string[];
   createdAt: string;
   currentUserRsvp?: string;
 }
@@ -64,8 +71,8 @@ export interface CreateEventRequest {
   startDate: string;
   endDate: string;
   isRecurring: boolean;
-  recurrencePattern?: string;
-  externalCalendarId?: string;
+  recurrencePattern?: string | null;
+  externalCalendarId?: string | null;
   invitedUnitIds: string[];
   invitedUserIds: string[];
 }
@@ -76,8 +83,8 @@ export interface UpdateEventRequest {
   startDate: string;
   endDate: string;
   isRecurring: boolean;
-  recurrencePattern?: string;
-  externalCalendarId?: string;
+  recurrencePattern?: string | null;
+  externalCalendarId?: string | null;
   invitedUnitIds: string[];
   invitedUserIds: string[];
 }

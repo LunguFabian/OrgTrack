@@ -6,11 +6,11 @@ const router = useRouter();
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-dark-bg text-white px-4">
+  <div class="min-h-screen flex items-center justify-center bg-bg text-text-strong px-4">
     <div class="text-center">
       <h1 class="text-9xl font-black text-emerald-500/20 mb-4">404</h1>
       <h2 class="text-3xl font-bold mb-4">Page Not Found</h2>
-      <p class="text-gray-400 mb-8 max-w-md mx-auto">
+      <p class="text-text-muted mb-8 max-w-md mx-auto">
         Oops! The page you are looking for doesn't exist or has been moved.
       </p>
       

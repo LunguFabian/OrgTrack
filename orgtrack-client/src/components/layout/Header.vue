@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useAuthStore } from '../../stores/authStore';
 import { useRouter } from 'vue-router';
-import { LogOut, Bell, Search, Menu, User, Settings } from 'lucide-vue-next';
+import { organizationService } from '../../api/services/organization.service';
+import { LogOut, Bell, Search, Menu, User, Sun, Moon, Loader2 } from 'lucide-vue-next';
+import { useDark, useToggle } from '@vueuse/core';
+
+const isDark = useDark();
+const toggleDark = useToggle(isDark);
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -12,59 +17,162 @@ defineEmits(['toggle-sidebar']);
 const isProfileMenuOpen = ref(false);
 const dropdownRef = ref<HTMLElement | null>(null);
 
+// --- Search state ---
+const searchQuery = ref('');
+const searchResults = ref<Array<{id: string, firstName: string, lastName: string, email: string, pictureUrl?: string}>>([]);
+const isSearching = ref(false);
+const showSearchDropdown = ref(false);
+const searchContainerRef = ref<HTMLElement | null>(null);
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+const performSearch = async (query: string) => {
+  if (query.length < 2) {
+    searchResults.value = [];
+    showSearchDropdown.value = false;
+    return;
+  }
+  isSearching.value = true;
+  showSearchDropdown.value = true;
+  try {
+    searchResults.value = await organizationService.searchMembers(query);
+  } catch (err) {
+    console.error('Search failed:', err);
+    searchResults.value = [];
+  } finally {
+    isSearching.value = false;
+  }
+};
+
+watch(searchQuery, (val) => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  if (val.length < 2) {
+    searchResults.value = [];
+    showSearchDropdown.value = false;
+    return;
+  }
+  debounceTimer = setTimeout(() => performSearch(val), 300);
+});
+
+const selectResult = (userId: string) => {
+  searchQuery.value = '';
+  searchResults.value = [];
+  showSearchDropdown.value = false;
+  router.push(`/profile/${userId}`);
+};
+
+const handleSearchKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') {
+    showSearchDropdown.value = false;
+    (e.target as HTMLElement)?.blur();
+  }
+};
+
+// --- Dropdown / click-outside ---
 const handleLogout = () => {
   isProfileMenuOpen.value = false;
   authStore.logout();
-  router.push('/login');
+  window.location.href = '/login';
 };
 
-const closeDropdown = (e: MouseEvent) => {
+const handleClickOutside = (e: MouseEvent) => {
   if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
     isProfileMenuOpen.value = false;
+  }
+  if (searchContainerRef.value && !searchContainerRef.value.contains(e.target as Node)) {
+    showSearchDropdown.value = false;
   }
 };
 
 onMounted(() => {
-  document.addEventListener('click', closeDropdown);
+  document.addEventListener('click', handleClickOutside);
 });
 
 onUnmounted(() => {
-  document.removeEventListener('click', closeDropdown);
+  document.removeEventListener('click', handleClickOutside);
+  if (debounceTimer) clearTimeout(debounceTimer);
 });
 </script>
 
 <template>
-  <header class="h-16 bg-dark-bg/80 backdrop-blur-md border-b border-dark-border sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
+  <header class="h-16 bg-bg/80 backdrop-blur-md border-b border-border sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
     <div class="flex items-center flex-1 gap-4">
       <!-- Hamburger Menu (visible only on small screens) -->
       <button 
         @click="$emit('toggle-sidebar')"
-        class="lg:hidden text-gray-400 hover:text-white p-1 rounded-lg hover:bg-dark-border/50 transition-colors"
+        class="lg:hidden text-text-muted hover:text-text-strong p-1 rounded-lg hover:bg-surface-hover transition-colors"
       >
         <Menu class="w-6 h-6" />
       </button>
 
-      <!-- Search placeholder -->
-      <div class="relative w-full max-w-md hidden md:block">
+      <!-- Search Bar -->
+      <div class="relative w-full max-w-md hidden md:block" ref="searchContainerRef">
         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search class="h-4 w-4 text-gray-500" />
+          <Search v-if="!isSearching" class="h-4 w-4 text-text-muted" />
+          <Loader2 v-else class="h-4 w-4 text-emerald-400 animate-spin" />
         </div>
         <input 
+          v-model="searchQuery"
+          @keydown="handleSearchKeydown"
+          @focus="searchQuery.length >= 2 && (showSearchDropdown = true)"
           type="text" 
-          placeholder="Search for members, tasks or units..." 
-          class="block w-full pl-10 pr-3 py-2 border border-dark-border rounded-lg bg-dark-surface text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-all"
+          placeholder="Search members by name or email..." 
+          class="block w-full pl-10 pr-3 py-2 border border-border rounded-lg bg-surface text-text-strong placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-all"
         />
+
+        <!-- Search Results Dropdown -->
+        <div 
+          v-if="showSearchDropdown"
+          class="absolute top-full left-0 right-0 mt-2 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden z-50 max-h-80 overflow-y-auto"
+        >
+          <!-- Loading -->
+          <div v-if="isSearching && searchResults.length === 0" class="flex items-center gap-3 px-4 py-6 justify-center">
+            <Loader2 class="w-5 h-5 text-emerald-400 animate-spin" />
+            <span class="text-sm text-text-muted">Searching...</span>
+          </div>
+
+          <!-- No results -->
+          <div v-else-if="!isSearching && searchResults.length === 0 && searchQuery.length >= 2" class="px-4 py-6 text-center">
+            <p class="text-sm text-text-muted">No members found for "<span class="text-text-strong font-medium">{{ searchQuery }}</span>"</p>
+          </div>
+
+          <!-- Results list -->
+          <button
+            v-for="user in searchResults"
+            :key="user.id"
+            @click="selectResult(user.id)"
+            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-500/5 transition-colors text-left border-b border-border last:border-b-0"
+          >
+            <img 
+              v-if="user.pictureUrl" 
+              :src="user.pictureUrl" 
+              class="w-9 h-9 rounded-full object-cover flex-shrink-0" 
+              alt="" 
+            />
+            <div v-else class="w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm flex-shrink-0">
+              {{ user.firstName[0] }}{{ user.lastName[0] }}
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-text-strong truncate">{{ user.firstName }} {{ user.lastName }}</p>
+              <p class="text-xs text-text-muted truncate">{{ user.email }}</p>
+            </div>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Right side (Profile & Actions) -->
-    <div class="flex items-center gap-6">
-      <button class="text-gray-400 hover:text-white transition-colors relative">
-        <Bell class="w-5 h-5" />
-        <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-dark-bg"></span>
+    <div class="flex items-center gap-4 sm:gap-6">
+      <button @click="toggleDark()" class="text-text-muted hover:text-text-strong transition-colors p-2 rounded-full hover:bg-surface-hover">
+        <Sun v-if="!isDark" class="w-5 h-5" />
+        <Moon v-else class="w-5 h-5" />
       </button>
 
-      <div class="h-6 w-px bg-dark-border"></div>
+      <button class="text-text-muted hover:text-text-strong transition-colors relative p-2 rounded-full hover:bg-surface-hover">
+        <Bell class="w-5 h-5" />
+        <span class="absolute top-1 right-1 block h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-bg"></span>
+      </button>
+
+      <div class="h-6 w-px bg-border"></div>
 
       <!-- User Profile Dropdown -->
       <div class="relative" ref="dropdownRef">
@@ -73,10 +181,19 @@ onUnmounted(() => {
           class="flex items-center gap-3 outline-none hover:opacity-80 transition-opacity"
         >
           <div class="flex flex-col items-end hidden sm:flex">
-            <span class="text-sm font-medium text-white">{{ authStore.user?.firstName }} {{ authStore.user?.lastName }}</span>
-            <span class="text-xs text-gray-400">{{ authStore.user?.email }}</span>
+            <span class="text-sm font-medium text-text-strong">{{ authStore.user?.firstName }} {{ authStore.user?.lastName }}</span>
+            <span class="text-xs text-text-muted">{{ authStore.user?.email }}</span>
           </div>
-          <div class="h-9 w-9 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold shadow-md cursor-pointer">
+          <img 
+            v-if="authStore.user?.pictureUrl" 
+            :src="authStore.user.pictureUrl" 
+            class="h-9 w-9 rounded-full object-cover shadow-md cursor-pointer" 
+            alt="Profile Avatar" 
+          />
+          <div 
+            v-else 
+            class="h-9 w-9 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold shadow-md cursor-pointer"
+          >
             {{ authStore.user?.firstName?.[0] }}{{ authStore.user?.lastName?.[0] }}
           </div>
         </button>
@@ -84,32 +201,25 @@ onUnmounted(() => {
         <!-- Dropdown Menu -->
         <div 
           v-if="isProfileMenuOpen"
-          class="absolute right-0 mt-3 w-56 bg-dark-surface border border-dark-border rounded-xl shadow-2xl py-2 z-50 transform origin-top-right transition-all"
+          class="absolute right-0 mt-3 w-56 bg-surface border border-border rounded-xl shadow-2xl py-2 z-50 transform origin-top-right transition-all"
         >
-          <div class="px-4 py-2 border-b border-dark-border mb-2 sm:hidden">
-             <p class="text-sm font-medium text-white truncate">{{ authStore.user?.firstName }} {{ authStore.user?.lastName }}</p>
-             <p class="text-xs text-gray-400 truncate">{{ authStore.user?.email }}</p>
+          <div class="px-4 py-2 border-b border-border mb-2 sm:hidden">
+             <p class="text-sm font-medium text-text-strong truncate">{{ authStore.user?.firstName }} {{ authStore.user?.lastName }}</p>
+             <p class="text-xs text-text-muted truncate">{{ authStore.user?.email }}</p>
           </div>
           
           <router-link 
             to="/profile" 
             @click="isProfileMenuOpen = false"
-            class="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-dark-border/40 hover:text-white transition-colors"
+            class="flex items-center gap-3 px-4 py-2 text-sm text-text-muted hover:bg-border/40 hover:text-text-strong transition-colors"
           >
             <User class="w-4 h-4" />
             My Profile
           </router-link>
           
-          <router-link 
-            to="/settings" 
-            @click="isProfileMenuOpen = false"
-            class="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-dark-border/40 hover:text-white transition-colors"
-          >
-            <Settings class="w-4 h-4" />
-            Account Settings
-          </router-link>
           
-          <div class="h-px bg-dark-border my-2"></div>
+          
+          <div class="h-px bg-border my-2"></div>
           
           <button 
             @click="handleLogout"

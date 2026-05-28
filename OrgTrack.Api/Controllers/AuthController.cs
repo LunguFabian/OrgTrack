@@ -33,7 +33,7 @@ public class AuthController(
         return Ok(new AuthResponse(
             result.AccessToken!,
             result.RefreshToken!,
-            new UserDto(result.UserId!.Value, result.Email!, result.FirstName!, result.LastName!)
+            new UserDto(result.UserId!.Value, result.Email!, result.FirstName!, result.LastName!, result.PictureUrl)
         ));
     }
 
@@ -54,7 +54,7 @@ public class AuthController(
         return Ok(new AuthResponse(
             result.AccessToken!,
             result.RefreshToken!,
-            new UserDto(result.UserId!.Value, result.Email!, result.FirstName!, result.LastName!)
+            new UserDto(result.UserId!.Value, result.Email!, result.FirstName!, result.LastName!, result.PictureUrl)
         ));
     }
 
@@ -66,7 +66,7 @@ public class AuthController(
     [HttpPost("dev-login")]
     public async Task<IActionResult> DevLogin([FromBody] DevLoginRequest request)
     {
-        if (!env.IsDevelopment())
+        if (!env.IsDevelopment() && !env.IsEnvironment("Testing"))
         {
             return NotFound();
         }
@@ -98,7 +98,7 @@ public class AuthController(
         return Ok(new AuthResponse(
             accessToken,
             refreshToken,
-            new UserDto(user.Id, user.Email, user.FirstName, user.LastName)
+            new UserDto(user.Id, user.Email, user.FirstName, user.LastName, user.PictureUrl)
         ));
     }
 }

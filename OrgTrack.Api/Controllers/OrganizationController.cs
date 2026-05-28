@@ -256,9 +256,39 @@ public class OrganizationController(
             u.Id,
             u.FirstName,
             u.LastName,
-            u.Email
+            u.Email,
+            u.PictureUrl
         });
         
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Returns the public profile of a user: name, email, avatar, and their unit memberships.
+    /// </summary>
+    [HttpGet("users/{id:guid}/profile")]
+    public async Task<IActionResult> GetUserProfile(Guid id)
+    {
+        var user = await userRepository.GetByIdAsync(id);
+        if (user == null) return NotFound(new { error = "User not found." });
+
+        var roles = await organizationService.GetMyUnitsAsync(id);
+        
+        return Ok(new
+        {
+            user.Id,
+            user.FirstName,
+            user.LastName,
+            user.Email,
+            user.PictureUrl,
+            Units = roles.Select(u => new
+            {
+                u.Id,
+                u.Name,
+                u.Type,
+                u.DepartmentType,
+                RoleName = u.Members?.FirstOrDefault(m => m.UserId == id)?.RoleName ?? "Member"
+            })
+        });
     }
 }

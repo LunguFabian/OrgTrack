@@ -6,14 +6,14 @@ const router = useRouter();
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-dark-bg text-white px-4">
+  <div class="min-h-screen flex items-center justify-center bg-bg text-text-strong px-4">
     <div class="text-center flex flex-col items-center">
       <div class="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
         <ShieldAlert class="w-12 h-12 text-red-500" />
       </div>
       <h1 class="text-9xl font-black text-red-500/10 absolute -z-10 pointer-events-none select-none">403</h1>
       <h2 class="text-3xl font-bold mb-4">Access Denied</h2>
-      <p class="text-gray-400 mb-8 max-w-md mx-auto leading-relaxed">
+      <p class="text-text-muted mb-8 max-w-md mx-auto leading-relaxed">
         You don't have the required permissions to access this page. 
         If you think this is a mistake, please contact your Local President.
       </p>

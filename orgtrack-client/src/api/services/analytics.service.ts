@@ -26,7 +26,9 @@ export interface UnitActivitySummaryDto {
 
 export const analyticsService = {
   async getMemberScore(userId: string): Promise<MemberActivityScoreDto> {
-    const response = await api.get<MemberActivityScoreDto>(`/analytics/members/${userId}`);
+    const response = await api.get<MemberActivityScoreDto>(`/analytics/members/${userId}`, {
+      _skipForbiddenRedirect: true
+    } as any);
     return response.data;
   },
 

@@ -5,6 +5,7 @@ import { organizationService } from '../api/services/organization.service';
 
 export const useOrgStore = defineStore('organization', () => {
   const tree = ref<OrganizationUnitDto[]>([]);
+  const myUnits = ref<OrganizationUnitDto[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
@@ -21,6 +22,14 @@ export const useOrgStore = defineStore('organization', () => {
     }
   }
 
+  async function fetchMyUnits() {
+    try {
+      myUnits.value = await organizationService.getMyUnits();
+    } catch (err) {
+      console.error('Failed to load user units', err);
+    }
+  }
+
   async function createUnit(data: import('../types/organization').CreateUnitRequest) {
     await organizationService.createUnit(data);
     await fetchTree();
@@ -28,9 +37,11 @@ export const useOrgStore = defineStore('organization', () => {
 
   return {
     tree,
+    myUnits,
     isLoading,
     error,
     fetchTree,
+    fetchMyUnits,
     createUnit
   };
 });

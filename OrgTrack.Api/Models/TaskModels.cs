@@ -8,7 +8,9 @@ public record CreateTaskRequest(
     string Description,
     TaskPriority Priority,
     Guid? AssigneeId,
-    DateTime? Deadline
+    DateTime? Deadline,
+    Guid? ParentTaskId,
+    TaskStatus? Status
 );
 
 public record UpdateTaskStatusRequest(
@@ -20,5 +22,6 @@ public record UpdateTaskRequest(
     string Description,
     TaskPriority Priority,
     Guid? AssigneeId,
-    DateTime? Deadline
+    DateTime? Deadline,
+    Guid? ParentTaskId
 );

@@ -1,47 +1,10 @@
 import { api } from '../axios';
-
-export interface EventDto {
-  id: string;
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  organizationUnitId: string;
-  invitedUnitIds: string[];
-  invitedUserIds: string[];
-  isRecurring: boolean;
-  recurrencePattern: string | null;
-  currentUserRsvp?: string;
-}
+import type { EventDto, CreateEventRequest, UpdateEventRequest } from '../../types/unit';
 
 export interface AttendanceReportItem {
   userId: string;
   userName: string;
   status: string;
-}
-
-export interface CreateEventRequest {
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  isRecurring: boolean;
-  recurrencePattern: string | null;
-  externalCalendarId: string | null;
-  invitedUnitIds: string[];
-  invitedUserIds: string[];
-}
-
-export interface UpdateEventRequest {
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  isRecurring: boolean;
-  recurrencePattern: string | null;
-  externalCalendarId: string | null;
-  invitedUnitIds: string[];
-  invitedUserIds: string[];
 }
 
 export const eventsService = {

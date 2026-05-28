@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { eventsService, type EventDto, type AttendanceReportItem } from '../../api/services/events.service';
+import { eventsService, type AttendanceReportItem } from '../../api/services/events.service';
+import type { EventDto } from '../../types/unit';
 import { useOrgStore } from '../../stores/orgStore';
 import { useToastStore } from '../../stores/toastStore';
 import { organizationService } from '../../api/services/organization.service';
@@ -226,7 +227,7 @@ const confirmAttendanceAsLeader = async (eventId: string, userId: string, curren
 const statusBadge = (status: string) => {
   if (status === 'Present') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
   if (status === 'Absent')  return 'bg-red-500/10 text-red-400 border-red-500/20';
-  if (status === 'NotResponded') return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+  if (status === 'NotResponded') return 'bg-gray-500/10 text-text-muted border-gray-500/20';
   return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
 };
 
@@ -260,7 +261,7 @@ const openEditModal = (event: EventDto) => {
     startDate: new Date(event.startDate).toISOString().slice(0, 16),
     endDate: new Date(event.endDate).toISOString().slice(0, 16),
     isRecurring: event.isRecurring,
-    recurrencePattern: event.recurrencePattern,
+    recurrencePattern: event.recurrencePattern || null,
     invitedUnitIds: event.invitedUnitIds ? [...event.invitedUnitIds] : [],
     invitedUserIds: event.invitedUserIds ? [...event.invitedUserIds] : [],
   };
@@ -333,8 +334,8 @@ const handleDeleteEvent = async (event: EventDto) => {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-lg font-semibold text-white">Events & Meetings</h2>
-        <p class="text-sm text-gray-500 mt-0.5">
+        <h2 class="text-lg font-semibold text-text-strong">Events & Meetings</h2>
+        <p class="text-sm text-text-muted mt-0.5">
           {{ upcomingEvents.length }} upcoming · {{ pastEvents.length }} past
         </p>
       </div>
@@ -356,10 +357,10 @@ const handleDeleteEvent = async (event: EventDto) => {
     <template v-else>
       <!-- Empty state -->
       <div v-if="events.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
-        <div class="w-16 h-16 bg-dark-border rounded-2xl flex items-center justify-center mb-4">
+        <div class="w-16 h-16 bg-border rounded-2xl flex items-center justify-center mb-4">
           <CalendarDays class="w-8 h-8 text-gray-600" />
         </div>
-        <p class="text-gray-400 font-medium">No events scheduled</p>
+        <p class="text-text-muted font-medium">No events scheduled</p>
         <p class="text-gray-600 text-sm mt-1">
           {{ isLeader ? 'Create the first event for your team.' : 'Your leader has not scheduled any events yet.' }}
         </p>
@@ -368,15 +369,15 @@ const handleDeleteEvent = async (event: EventDto) => {
       <template v-else>
         <!-- Upcoming Events -->
         <section v-if="upcomingEvents.length > 0">
-          <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Upcoming</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">Upcoming</h3>
           <div class="space-y-3">
             <div
               v-for="event in upcomingEvents"
               :key="event.id"
-              class="bg-dark-bg border rounded-xl overflow-hidden transition-all"
+              class="bg-bg border rounded-xl overflow-hidden transition-all"
               :class="isToday(event.startDate)
                 ? 'border-emerald-500/40 shadow-lg shadow-emerald-500/10'
-                : 'border-dark-border hover:border-dark-border/80'"
+                : 'border-border hover:border-border/80'"
             >
               <!-- Event Card Header -->
               <div class="p-4">
@@ -384,11 +385,11 @@ const handleDeleteEvent = async (event: EventDto) => {
                   <!-- Left: Date Block -->
                   <div class="flex items-start gap-4">
                     <div class="flex-shrink-0 w-12 text-center">
-                      <div class="text-xs font-medium uppercase text-gray-500">
+                      <div class="text-xs font-medium uppercase text-text-muted">
                         {{ new Date(event.startDate).toLocaleString('en-GB', { month: 'short' }) }}
                       </div>
                       <div class="text-2xl font-black leading-tight"
-                        :class="isToday(event.startDate) ? 'text-emerald-400' : 'text-white'"
+                        :class="isToday(event.startDate) ? 'text-emerald-400' : 'text-text-strong'"
                       >
                         {{ new Date(event.startDate).getDate() }}
                       </div>
@@ -410,14 +411,14 @@ const handleDeleteEvent = async (event: EventDto) => {
                           <Repeat class="w-2.5 h-2.5" /> Recurring
                         </span>
                       </div>
-                      <h4 class="text-white font-semibold text-sm leading-tight">{{ event.title }}</h4>
-                      <p v-if="event.description" class="text-xs text-gray-500 mt-0.5 line-clamp-1">{{ event.description }}</p>
+                      <h4 class="text-text-strong font-semibold text-sm leading-tight">{{ event.title }}</h4>
+                      <p v-if="event.description" class="text-xs text-text-muted mt-0.5 line-clamp-1">{{ event.description }}</p>
                       <div class="flex items-center gap-3 mt-2">
-                        <span class="flex items-center gap-1 text-xs text-gray-500">
+                        <span class="flex items-center gap-1 text-xs text-text-muted">
                           <Clock class="w-3 h-3" />
                           {{ formatTime(event.startDate) }} – {{ formatTime(event.endDate) }}
                         </span>
-                        <span class="flex items-center gap-1 text-xs text-gray-500">
+                        <span class="flex items-center gap-1 text-xs text-text-muted">
                           <AlarmClock class="w-3 h-3" />
                           {{ formatDuration(event.startDate, event.endDate) }}
                         </span>
@@ -427,24 +428,24 @@ const handleDeleteEvent = async (event: EventDto) => {
 
                   <!-- Right: actions & expand -->
                   <div class="flex items-center gap-1 flex-shrink-0">
-                    <button v-if="isLeader" @click="openEditModal(event)" class="p-1.5 text-gray-500 hover:text-emerald-400 transition-colors rounded-lg hover:bg-emerald-500/10" title="Edit Event">
+                    <button v-if="isLeader" @click="openEditModal(event)" class="p-1.5 text-text-muted hover:text-emerald-400 transition-colors rounded-lg hover:bg-emerald-500/10" title="Edit Event">
                       <Pencil class="w-4 h-4" />
                     </button>
                     <!-- Delete with inline confirmation -->
                     <template v-if="isLeader">
-                      <button v-if="confirmingDeleteId !== event.id" @click="confirmingDeleteId = event.id" class="p-1.5 text-gray-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10" title="Delete Event">
+                      <button v-if="confirmingDeleteId !== event.id" @click="confirmingDeleteId = event.id" class="p-1.5 text-text-muted hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10" title="Delete Event">
                         <Trash2 class="w-4 h-4" />
                       </button>
                       <div v-else class="flex items-center gap-1">
                         <button @click="handleDeleteEvent(event)" class="px-2 py-1 text-[10px] font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30 rounded-md hover:bg-red-500/30 transition-colors">
                           Delete
                         </button>
-                        <button @click="confirmingDeleteId = null" class="px-2 py-1 text-[10px] font-bold uppercase text-gray-400 border border-dark-border rounded-md hover:bg-dark-border/50 transition-colors">
+                        <button @click="confirmingDeleteId = null" class="px-2 py-1 text-[10px] font-bold uppercase text-text-muted border border-border rounded-md hover:bg-surface-hover transition-colors">
                           Cancel
                         </button>
                       </div>
                     </template>
-                    <button @click="toggleExpand(event.id)" class="p-1.5 text-gray-500 hover:text-white transition-colors rounded-lg hover:bg-dark-border/50">
+                    <button @click="toggleExpand(event.id)" class="p-1.5 text-text-muted hover:text-text-strong transition-colors rounded-lg hover:bg-surface-hover">
                       <ChevronDown v-if="expandedEventId !== event.id" class="w-4 h-4" />
                       <ChevronUp v-else class="w-4 h-4" />
                     </button>
@@ -452,8 +453,8 @@ const handleDeleteEvent = async (event: EventDto) => {
                 </div>
 
                 <!-- RSVP Buttons -->
-                <div class="flex items-center gap-2 mt-4 pt-4 border-t border-dark-border/50">
-                  <span class="text-xs text-gray-500 mr-1">Your RSVP:</span>
+                <div class="flex items-center gap-2 mt-4 pt-4 border-t border-border/50">
+                  <span class="text-xs text-text-muted mr-1">Your RSVP:</span>
                   <button
                     v-for="opt in rsvpOptions"
                     :key="opt.status"
@@ -465,21 +466,21 @@ const handleDeleteEvent = async (event: EventDto) => {
                     <component :is="opt.icon" class="w-3.5 h-3.5" />
                     {{ opt.label }}
                   </button>
-                  <Loader2 v-if="rsvpLoading === event.id" class="w-4 h-4 text-gray-400 animate-spin ml-1" />
+                  <Loader2 v-if="rsvpLoading === event.id" class="w-4 h-4 text-text-muted animate-spin ml-1" />
                 </div>
               </div>
 
               <!-- Expanded: Attendance report (leaders only) -->
-              <div v-if="expandedEventId === event.id" class="border-t border-dark-border bg-dark-surface/50 p-4">
+              <div v-if="expandedEventId === event.id" class="border-t border-border bg-surface/50 p-4">
                 <div v-if="loadingAttendance === event.id" class="flex justify-center py-4">
-                  <Loader2 class="w-5 h-5 animate-spin text-gray-500" />
+                  <Loader2 class="w-5 h-5 animate-spin text-text-muted" />
                 </div>
                 <template v-else-if="isLeader && attendanceReports[event.id]">
-                  <h5 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                  <h5 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center justify-between">
                     <span class="flex items-center gap-2"><Users class="w-3.5 h-3.5" /> Attendance Report</span>
-                    <span class="text-[10px] normal-case text-gray-500">Click status to change</span>
+                    <span class="text-[10px] normal-case text-text-muted">Click status to change</span>
                   </h5>
-                  <div v-if="attendanceReports[event.id].length === 0" class="text-sm text-gray-500 text-center py-2">
+                  <div v-if="attendanceReports[event.id].length === 0" class="text-sm text-text-muted text-center py-2">
                     No members found in this unit.
                   </div>
                   <div v-else class="space-y-2">
@@ -492,7 +493,7 @@ const handleDeleteEvent = async (event: EventDto) => {
                         <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
                           {{ item.userName.substring(0, 2).toUpperCase() }}
                         </div>
-                        <span class="text-sm text-gray-300">{{ item.userName }}</span>
+                        <span class="text-sm text-text-muted">{{ item.userName }}</span>
                       </div>
                       <button 
                         @click="confirmAttendanceAsLeader(event.id, item.userId, item.status)"
@@ -503,8 +504,8 @@ const handleDeleteEvent = async (event: EventDto) => {
                     </div>
                   </div>
                 </template>
-                <div v-else-if="!isLeader" class="text-sm text-gray-500 text-center py-2">
-                  <p class="text-gray-400 font-medium">{{ event.title }}</p>
+                <div v-else-if="!isLeader" class="text-sm text-text-muted text-center py-2">
+                  <p class="text-text-muted font-medium">{{ event.title }}</p>
                   <p class="text-xs mt-1">{{ event.description }}</p>
                 </div>
               </div>
@@ -514,18 +515,18 @@ const handleDeleteEvent = async (event: EventDto) => {
 
         <!-- Past Events -->
         <section v-if="pastEvents.length > 0" class="mt-6">
-          <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Past Events</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">Past Events</h3>
           <div class="space-y-2">
             <div
               v-for="event in pastEvents"
               :key="event.id"
-              class="bg-dark-bg border border-dark-border rounded-xl p-4 opacity-60 hover:opacity-80 transition-opacity"
+              class="bg-bg border border-border rounded-xl p-4 opacity-60 hover:opacity-80 transition-opacity"
             >
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                  <Calendar class="w-4 h-4 text-gray-500 flex-shrink-0" />
+                  <Calendar class="w-4 h-4 text-text-muted flex-shrink-0" />
                   <div>
-                    <p class="text-sm font-medium text-gray-300">{{ event.title }}</p>
+                    <p class="text-sm font-medium text-text-muted">{{ event.title }}</p>
                     <p class="text-xs text-gray-600">{{ formatDate(event.startDate) }} · {{ formatDuration(event.startDate, event.endDate) }}</p>
                   </div>
                 </div>
@@ -545,19 +546,19 @@ const handleDeleteEvent = async (event: EventDto) => {
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       @click.self="isEventModalOpen = false"
     >
-      <div class="bg-dark-surface border border-dark-border rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden">
+      <div class="bg-surface border border-border rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden">
         <!-- Modal Header -->
-        <div class="flex items-center justify-between p-6 border-b border-dark-border">
+        <div class="flex items-center justify-between p-6 border-b border-border">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center">
               <CalendarDays class="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h3 class="text-white font-semibold">{{ isEditingEvent ? 'Edit Event' : 'Create Event' }}</h3>
-              <p class="text-xs text-gray-500">{{ isEditingEvent ? 'Update event details and invitations' : 'Schedule a meeting or activity for your team' }}</p>
+              <h3 class="text-text-strong font-semibold">{{ isEditingEvent ? 'Edit Event' : 'Create Event' }}</h3>
+              <p class="text-xs text-text-muted">{{ isEditingEvent ? 'Update event details and invitations' : 'Schedule a meeting or activity for your team' }}</p>
             </div>
           </div>
-          <button @click="isEventModalOpen = false" class="text-gray-500 hover:text-white transition-colors">
+          <button @click="isEventModalOpen = false" class="text-text-muted hover:text-text-strong transition-colors">
             <X class="w-5 h-5" />
           </button>
         </div>
@@ -572,42 +573,42 @@ const handleDeleteEvent = async (event: EventDto) => {
 
           <!-- Title -->
           <div>
-            <label class="block text-xs font-medium text-gray-400 mb-1.5">Event Title *</label>
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Event Title *</label>
             <input
               v-model="eventForm.title"
               placeholder="e.g., Weekly Team Sync"
-              class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors"
+              class="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-sm text-text-strong placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors"
             />
           </div>
 
           <!-- Description -->
           <div>
-            <label class="block text-xs font-medium text-gray-400 mb-1.5">Description</label>
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Description</label>
             <textarea
               v-model="eventForm.description"
               placeholder="What's this event about?"
               rows="2"
-              class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors resize-none"
+              class="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-sm text-text-strong placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors resize-none"
             />
           </div>
 
           <!-- Date/Time row -->
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">Start *</label>
+              <label class="block text-xs font-medium text-text-muted mb-1.5">Start *</label>
               <input
                 v-model="eventForm.startDate"
                 type="datetime-local"
-                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
+                class="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors"
                 style="color-scheme: dark;"
               />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">End *</label>
+              <label class="block text-xs font-medium text-text-muted mb-1.5">End *</label>
               <input
                 v-model="eventForm.endDate"
                 type="datetime-local"
-                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
+                class="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors"
                 style="color-scheme: dark;"
               />
             </div>
@@ -615,24 +616,24 @@ const handleDeleteEvent = async (event: EventDto) => {
 
           <!-- Invited Units -->
           <div class="relative">
-            <label class="block text-xs font-medium text-gray-400 mb-1.5">Invite Entire Units / Teams</label>
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Invite Entire Units / Teams</label>
             <div 
               @click="isUnitsDropdownOpen = !isUnitsDropdownOpen"
-              class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white cursor-pointer flex justify-between items-center"
+              class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong cursor-pointer flex justify-between items-center"
             >
-              <span class="text-gray-400" v-if="eventForm.invitedUnitIds.length === 0">Select units...</span>
+              <span class="text-text-muted" v-if="eventForm.invitedUnitIds.length === 0">Select units...</span>
               <span v-else>{{ eventForm.invitedUnitIds.length }} unit(s) selected</span>
-              <ChevronDown class="w-4 h-4 text-gray-500" />
+              <ChevronDown class="w-4 h-4 text-text-muted" />
             </div>
             
-            <div v-if="isUnitsDropdownOpen" class="absolute z-10 mt-1 w-full bg-dark-bg border border-dark-border rounded-lg max-h-40 overflow-y-auto shadow-xl">
+            <div v-if="isUnitsDropdownOpen" class="absolute z-10 mt-1 w-full bg-bg border border-border rounded-lg max-h-40 overflow-y-auto shadow-xl">
               <div
                 v-for="unit in allUnits"
                 :key="unit.id"
                 @click="toggleUnitInvite(unit.id)"
-                class="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-dark-border/50 transition-colors"
+                class="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-surface-hover transition-colors"
               >
-                <span class="text-sm text-white whitespace-pre">{{ unit.name }}</span>
+                <span class="text-sm text-text-strong whitespace-pre">{{ unit.name }}</span>
                 <CheckCircle2 v-if="isUnitSelected(unit.id)" class="w-4 h-4 text-emerald-500" />
               </div>
             </div>
@@ -640,28 +641,28 @@ const handleDeleteEvent = async (event: EventDto) => {
 
           <!-- Invited Users -->
           <div>
-            <label class="block text-xs font-medium text-gray-400 mb-1.5">Invite Specific Members</label>
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Invite Specific Members</label>
             <div class="relative">
               <input
                 v-model="userSearchQuery"
                 @input="onUserSearch"
                 placeholder="Search by name or email..."
-                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors"
+                class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors"
               />
               <Loader2 v-if="isSearchingUsers" class="absolute right-3 top-2.5 w-4 h-4 text-emerald-500 animate-spin" />
             </div>
             
             <!-- Search Results Dropdown -->
-            <div v-if="searchedUsers.length > 0" class="mt-1 bg-dark-bg border border-dark-border rounded-lg max-h-40 overflow-y-auto">
+            <div v-if="searchedUsers.length > 0" class="mt-1 bg-bg border border-border rounded-lg max-h-40 overflow-y-auto">
               <div
                 v-for="user in searchedUsers"
                 :key="user.id"
                 @click="toggleUserInvite(user)"
-                class="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-dark-border/50"
+                class="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
               >
                 <div>
-                  <p class="text-sm text-white">{{ user.firstName }} {{ user.lastName }}</p>
-                  <p class="text-xs text-gray-500">{{ user.email }}</p>
+                  <p class="text-sm text-text-strong">{{ user.firstName }} {{ user.lastName }}</p>
+                  <p class="text-xs text-text-muted">{{ user.email }}</p>
                 </div>
                 <CheckCircle2 v-if="isUserSelected(user.id)" class="w-4 h-4 text-emerald-500" />
               </div>
@@ -683,16 +684,16 @@ const handleDeleteEvent = async (event: EventDto) => {
           </div>
 
           <!-- Recurring toggle — styled as a clean toggle row -->
-          <div class="flex items-center gap-3 p-3 bg-dark-bg rounded-lg border border-dark-border">
+          <div class="flex items-center gap-3 p-3 bg-bg rounded-lg border border-border">
             <Repeat class="w-4 h-4 text-purple-400 flex-shrink-0" />
             <div class="flex-1">
-              <p class="text-sm text-white font-medium">Recurring Event</p>
-              <p class="text-xs text-gray-500">Repeat this event on a schedule</p>
+              <p class="text-sm text-text-strong font-medium">Recurring Event</p>
+              <p class="text-xs text-text-muted">Repeat this event on a schedule</p>
             </div>
             <button
               @click="eventForm.isRecurring = !eventForm.isRecurring"
               class="relative w-10 h-5 rounded-full transition-colors flex-shrink-0 focus:outline-none"
-              :class="eventForm.isRecurring ? 'bg-purple-500' : 'bg-dark-border'"
+              :class="eventForm.isRecurring ? 'bg-purple-500' : 'bg-border'"
             >
               <span class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm"
                 :class="eventForm.isRecurring ? 'translate-x-5' : 'translate-x-0'" />
@@ -701,10 +702,10 @@ const handleDeleteEvent = async (event: EventDto) => {
 
           <!-- Recurrence Pattern (shown only if recurring) -->
           <div v-if="eventForm.isRecurring">
-            <label class="block text-xs font-medium text-gray-400 mb-1.5">Recurrence Pattern</label>
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Recurrence Pattern</label>
             <select
               v-model="eventForm.recurrencePattern"
-              class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
+              class="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors"
             >
               <option value="WEEKLY">Weekly</option>
               <option value="BIWEEKLY">Bi-weekly</option>
@@ -714,10 +715,10 @@ const handleDeleteEvent = async (event: EventDto) => {
         </div>
 
         <!-- Modal Footer -->
-        <div class="flex items-center justify-end gap-3 p-6 border-t border-dark-border">
+        <div class="flex items-center justify-end gap-3 p-6 border-t border-border">
           <button
             @click="isEventModalOpen = false"
-            class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+            class="px-4 py-2 text-sm text-text-muted hover:text-text-strong transition-colors"
           >
             Cancel
           </button>

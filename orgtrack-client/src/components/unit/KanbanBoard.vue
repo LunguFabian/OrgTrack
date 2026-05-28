@@ -28,7 +28,7 @@ const error = ref('');
 const dragOverColumn = ref<string | null>(null);
 
 const columns = [
-  { id: 'ToDo', name: 'To Do', icon: ListTodo, color: 'text-gray-400', border: 'border-gray-500/20', bg: 'bg-gray-500/5' },
+  { id: 'ToDo', name: 'To Do', icon: ListTodo, color: 'text-text-muted', border: 'border-gray-500/20', bg: 'bg-gray-500/5' },
   { id: 'InProgress', name: 'In Progress', icon: Loader2, color: 'text-blue-400', border: 'border-blue-500/20', bg: 'bg-blue-500/5' },
   { id: 'WaitingForApproval', name: 'Review', icon: ClipboardCheck, color: 'text-orange-400', border: 'border-orange-500/20', bg: 'bg-orange-500/5' },
   { id: 'Done', name: 'Done', icon: CheckCircle2, color: 'text-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/5' }
@@ -65,13 +65,18 @@ const tasksByColumn = computed(() => {
   };
   
   tasks.value.forEach(task => {
-    if (grouped[task.status]) {
+    // Only show top-level tasks on the board
+    if (!task.parentTaskId && grouped[task.status]) {
       grouped[task.status].push(task);
     }
   });
   
   return grouped;
 });
+
+const getSubTasks = (parentId: string) => {
+  return tasks.value.filter(t => t.parentTaskId === parentId);
+};
 const onDragStart = (e: DragEvent, task: TaskDto, fromColumn: string) => {
   if (task.status === 'Done') {
     e.preventDefault();
@@ -142,12 +147,14 @@ const taskForm = ref({
   priority: 'Medium',
   assigneeId: '' as string | null,
   deadline: '' as string | null,
-  targetUnitId: ''
+  targetUnitId: '',
+  parentTaskId: null as string | null,
+  status: 'ToDo'
 });
 
 const minDateTime = ref('');
 
-const openCreateModal = () => {
+const openCreateModal = (parentTaskId: string | null = null, defaultStatus: string = 'ToDo') => {
   createError.value = '';
   isEditingTask.value = false;
   editingTaskId.value = null;
@@ -161,7 +168,9 @@ const openCreateModal = () => {
     priority: 'Medium',
     assigneeId: props.mode === 'me' ? (authStore.user?.id || '') : '',
     deadline: '',
-    targetUnitId: props.mode === 'unit' ? props.unitId! : ''
+    targetUnitId: props.mode === 'unit' ? props.unitId! : '',
+    parentTaskId: parentTaskId,
+    status: defaultStatus
   };
   isTaskModalOpen.value = true;
 };
@@ -180,9 +189,21 @@ const openEditModal = (task: TaskDto) => {
     priority: task.priority,
     assigneeId: task.assigneeId || null,
     deadline: task.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : null,
-    targetUnitId: task.organizationUnitId
+    targetUnitId: task.organizationUnitId,
+    parentTaskId: task.parentTaskId || null,
+    status: task.status
   };
   isTaskModalOpen.value = true;
+};
+
+const handleSubtaskStatusChange = async (subTask: TaskDto, newStatus: string) => {
+  try {
+    const updated = await tasksService.updateTaskStatus(subTask.organizationUnitId, subTask.id, newStatus);
+    const index = tasks.value.findIndex(t => t.id === subTask.id);
+    if (index !== -1) tasks.value[index] = updated;
+  } catch (err: any) {
+    toastStore.showToast(err.response?.data?.error || 'Failed to update subtask status.', 'error');
+  }
 };
 
 const submitTask = async () => {
@@ -213,7 +234,9 @@ const submitTask = async () => {
       description: taskForm.value.description,
       priority: taskForm.value.priority,
       assigneeId: taskForm.value.assigneeId || null,
-      deadline: taskForm.value.deadline ? new Date(taskForm.value.deadline).toISOString() : null
+      deadline: taskForm.value.deadline ? new Date(taskForm.value.deadline).toISOString() : null,
+      parentTaskId: taskForm.value.parentTaskId,
+      status: taskForm.value.status
     };
     
     if (isEditingTask.value && editingTaskId.value) {
@@ -244,13 +267,13 @@ const submitTask = async () => {
     <!-- Header Controls -->
     <div class="flex items-center justify-between mb-6 flex-shrink-0">
       <div class="flex items-center gap-2">
-        <h3 class="text-white font-bold text-lg">Task Board</h3>
-        <span class="px-2 py-0.5 rounded-full bg-dark-bg border border-dark-border text-xs text-gray-400 font-medium">
+        <h3 class="text-text-strong font-bold text-lg">Task Board</h3>
+        <span class="px-2 py-0.5 rounded-full bg-bg border border-border text-xs text-text-muted font-medium">
           {{ tasks.length }} tasks
         </span>
       </div>
       
-      <button @click="openCreateModal" class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-emerald-500/20">
+      <button @click="openCreateModal(null)" class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-emerald-500/20">
         <Plus class="w-4 h-4" />
         New Task
       </button>
@@ -265,7 +288,7 @@ const submitTask = async () => {
     <div v-if="isLoading" class="flex-1 flex items-center justify-center">
       <div class="flex flex-col items-center gap-3">
         <div class="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <span class="text-gray-400 text-sm font-medium">Loading board...</span>
+        <span class="text-text-muted text-sm font-medium">Loading board...</span>
       </div>
     </div>
 
@@ -276,7 +299,7 @@ const submitTask = async () => {
         :key="column.id"
         class="flex-shrink-0 w-[300px] flex flex-col rounded-2xl border transition-colors duration-200"
         :class="[
-          dragOverColumn === column.id ? `border-${column.color.split('-')[1]}-500/50 ${column.bg}` : 'border-dark-border bg-dark-surface/50'
+          dragOverColumn === column.id ? `border-${column.color.split('-')[1]}-500/50 ${column.bg}` : 'border-border bg-surface/50'
         ]"
         @dragover.prevent
         @dragenter.prevent="onDragEnter(column.id)"
@@ -284,13 +307,13 @@ const submitTask = async () => {
         @drop="onDrop($event, column.id)"
       >
         <!-- Column Header -->
-        <div class="p-4 border-b border-dark-border/50 flex items-center justify-between group">
+        <div class="p-4 border-b border-border/50 flex items-center justify-between group">
           <div class="flex items-center gap-2.5">
             <component :is="column.icon" :class="['w-4 h-4', column.color]" />
-            <h4 class="text-white font-semibold text-sm">{{ column.name }}</h4>
-            <span class="text-xs text-gray-500 font-medium ml-1">{{ tasksByColumn[column.id].length }}</span>
+            <h4 class="text-text-strong font-semibold text-sm">{{ column.name }}</h4>
+            <span class="text-xs text-text-muted font-medium ml-1">{{ tasksByColumn[column.id].length }}</span>
           </div>
-          <button class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-dark-bg text-gray-400 transition-all">
+          <button @click="openCreateModal(null, column.id)" class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-bg text-text-muted hover:text-emerald-400 transition-all">
             <Plus class="w-3.5 h-3.5" />
           </button>
         </div>
@@ -303,6 +326,7 @@ const submitTask = async () => {
               v-for="task in tasksByColumn[column.id]"
               :key="task.id"
               :task="task"
+              :sub-tasks="getSubTasks(task.id)"
               :confirmingDelete="confirmingDeleteTaskId === task.id"
               @dragstart="onDragStart($event, task, column.id)"
               @request-delete="confirmingDeleteTaskId = task.id"
@@ -316,7 +340,7 @@ const submitTask = async () => {
           
           <div
             v-if="tasksByColumn[column.id].length === 0"
-            class="h-24 border-2 border-dashed border-dark-border rounded-xl flex items-center justify-center"
+            class="h-24 border-2 border-dashed border-border rounded-xl flex items-center justify-center"
           >
             <span class="text-xs text-gray-600 font-medium">Drop tasks here</span>
           </div>
@@ -326,10 +350,10 @@ const submitTask = async () => {
 
     <!-- Task Modal -->
     <div v-if="isTaskModalOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-dark-surface border border-dark-border rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        <div class="p-6 border-b border-dark-border flex items-center justify-between flex-shrink-0">
-          <h3 class="text-lg font-bold text-white">{{ isEditingTask ? 'Edit Task' : 'Create New Task' }}</h3>
-          <button @click="isTaskModalOpen = false" class="text-gray-400 hover:text-white transition-colors">✕</button>
+      <div class="bg-surface border border-border rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="p-6 border-b border-border flex items-center justify-between flex-shrink-0">
+          <h3 class="text-lg font-bold text-text-strong">{{ isEditingTask ? 'Edit Task' : 'Create New Task' }}</h3>
+          <button @click="isTaskModalOpen = false" class="text-text-muted hover:text-text-strong transition-colors">✕</button>
         </div>
         
         <div class="p-6 overflow-y-auto custom-scrollbar">
@@ -339,19 +363,19 @@ const submitTask = async () => {
           
           <div class="space-y-4">
             <div>
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">Task Title *</label>
-              <input v-model="taskForm.title" type="text" placeholder="E.g. Prepare marketing materials" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors" />
+              <label class="block text-xs font-medium text-text-muted mb-1.5">Task Title *</label>
+              <input v-model="taskForm.title" type="text" placeholder="E.g. Prepare marketing materials" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors" />
             </div>
             
             <div>
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">Description *</label>
-              <textarea v-model="taskForm.description" rows="3" placeholder="Add more details about what needs to be done..." class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors resize-none"></textarea>
+              <label class="block text-xs font-medium text-text-muted mb-1.5">Description *</label>
+              <textarea v-model="taskForm.description" rows="3" placeholder="Add more details about what needs to be done..." class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors resize-none"></textarea>
             </div>
             
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">Priority</label>
-                <select v-model="taskForm.priority" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors">
+                <label class="block text-xs font-medium text-text-muted mb-1.5">Priority</label>
+                <select v-model="taskForm.priority" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors">
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
                   <option value="High">High</option>
@@ -360,38 +384,72 @@ const submitTask = async () => {
               </div>
               
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">Deadline (Optional)</label>
-                <input v-model="taskForm.deadline" type="datetime-local" :min="minDateTime" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors" style="color-scheme: dark;" />
+                <label class="block text-xs font-medium text-text-muted mb-1.5">Deadline (Optional)</label>
+                <input v-model="taskForm.deadline" type="datetime-local" :min="minDateTime" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors" style="color-scheme: dark;" />
               </div>
             </div>
             
             <div>
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">Assignee (Optional)</label>
-              <select v-model="taskForm.assigneeId" :disabled="props.mode === 'me'" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
+              <label class="block text-xs font-medium text-text-muted mb-1.5">Assignee (Optional)</label>
+              <select v-model="taskForm.assigneeId" :disabled="props.mode === 'me'" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
                 <option value="">Unassigned</option>
                 <option v-for="member in props.members" :key="member.userId" :value="member.userId">
                   {{ member.firstName }} {{ member.lastName }} ({{ member.roleName }})
                 </option>
                 <option v-if="props.mode === 'me'" :value="authStore.user?.id">Me ({{ authStore.user?.firstName }})</option>
               </select>
-              <p v-if="props.mode === 'me'" class="text-[10px] text-gray-500 mt-1">In "My Tasks" mode, tasks are automatically assigned to you.</p>
+              <p v-if="props.mode === 'me'" class="text-[10px] text-text-muted mt-1">In "My Tasks" mode, tasks are automatically assigned to you.</p>
             </div>
             
             <!-- Unit selection only in 'me' mode -->
             <div v-if="props.mode === 'me'">
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">Target Unit *</label>
-              <select v-model="taskForm.targetUnitId" :disabled="isEditingTask" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
+              <label class="block text-xs font-medium text-text-muted mb-1.5">Target Unit *</label>
+              <select v-model="taskForm.targetUnitId" :disabled="isEditingTask" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
                 <option value="" disabled>Select the unit for this task...</option>
                 <option v-for="unit in myUnits" :key="unit.id" :value="unit.id">
                   {{ unit.name }}
                 </option>
               </select>
             </div>
+            
+            <!-- SubTasks Section in Edit Mode -->
+            <div v-if="isEditingTask && !taskForm.parentTaskId" class="mt-6 pt-6 border-t border-border">
+              <div class="flex items-center justify-between mb-3">
+                <label class="block text-xs font-semibold text-text-strong uppercase tracking-wider">Sub-tasks</label>
+                <button @click="openCreateModal(editingTaskId)" class="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1">
+                  <Plus class="w-3 h-3" /> Add sub-task
+                </button>
+              </div>
+              
+              <div class="space-y-2">
+                <div v-for="subTask in getSubTasks(editingTaskId!)" :key="subTask.id" class="flex items-center justify-between p-3 bg-bg border border-border rounded-lg group">
+                  <div class="flex items-center gap-3">
+                    <button 
+                      @click="handleSubtaskStatusChange(subTask, subTask.status === 'Done' ? 'ToDo' : 'Done')"
+                      class="w-5 h-5 rounded-full border flex items-center justify-center transition-colors"
+                      :class="subTask.status === 'Done' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-500 hover:border-emerald-400'"
+                    >
+                      <CheckCircle2 v-if="subTask.status === 'Done'" class="w-3.5 h-3.5" />
+                    </button>
+                    <span :class="['text-sm font-medium', subTask.status === 'Done' ? 'text-text-muted line-through' : 'text-text-strong']">
+                      {{ subTask.title }}
+                    </span>
+                  </div>
+                  <button @click="openEditModal(subTask)" class="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-emerald-400 transition-opacity">
+                    Edit
+                  </button>
+                </div>
+                
+                <div v-if="getSubTasks(editingTaskId!).length === 0" class="text-center p-4 text-xs text-text-muted border border-dashed border-border rounded-lg">
+                  No sub-tasks. Break down your task into smaller steps.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
-        <div class="p-6 border-t border-dark-border flex items-center justify-end gap-3 flex-shrink-0 bg-dark-surface">
-          <button @click="isTaskModalOpen = false" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors">
+        <div class="p-6 border-t border-border flex items-center justify-end gap-3 flex-shrink-0 bg-surface">
+          <button @click="isTaskModalOpen = false" class="px-4 py-2 text-sm font-medium text-text-muted hover:text-text-strong transition-colors">
             Cancel
           </button>
           <button 

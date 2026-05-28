@@ -59,34 +59,34 @@ const formatDate = (iso: string) =>
 </script>
 
 <template>
-  <div class="min-h-screen bg-dark-bg flex items-center justify-center p-4">
+  <div class="min-h-screen bg-bg flex items-center justify-center p-4">
     <div class="w-full max-w-md">
 
       <!-- Logo / Brand -->
       <div class="text-center mb-8">
-        <h1 class="text-2xl font-bold text-white tracking-tight">OrgTrack</h1>
-        <p class="text-gray-500 text-sm mt-1">Organization Management Platform</p>
+        <h1 class="text-2xl font-bold text-text-strong tracking-tight">OrgTrack</h1>
+        <p class="text-text-muted text-sm mt-1">Organization Management Platform</p>
       </div>
 
       <!-- Loading -->
-      <div v-if="isLoading" class="bg-dark-surface border border-dark-border rounded-2xl p-8 text-center">
+      <div v-if="isLoading" class="bg-surface border border-border rounded-2xl p-8 text-center">
         <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p class="text-gray-400">Loading invite details...</p>
+        <p class="text-text-muted">Loading invite details...</p>
       </div>
 
       <!-- Invalid / Error -->
-      <div v-else-if="error && !preview" class="bg-dark-surface border border-red-500/20 rounded-2xl p-8 text-center">
+      <div v-else-if="error && !preview" class="bg-surface border border-red-500/20 rounded-2xl p-8 text-center">
         <XCircle class="w-12 h-12 text-red-400 mx-auto mb-4" />
-        <h2 class="text-white font-bold text-xl mb-2">Invalid Invite</h2>
-        <p class="text-gray-400 text-sm">{{ error }}</p>
+        <h2 class="text-text-strong font-bold text-xl mb-2">Invalid Invite</h2>
+        <p class="text-text-muted text-sm">{{ error }}</p>
       </div>
 
       <!-- Success State -->
-      <div v-else-if="joinSuccess" class="bg-dark-surface border border-emerald-500/20 rounded-2xl p-8 text-center">
+      <div v-else-if="joinSuccess" class="bg-surface border border-emerald-500/20 rounded-2xl p-8 text-center">
         <CheckCircle class="w-12 h-12 text-emerald-400 mx-auto mb-4" />
-        <h2 class="text-white font-bold text-xl mb-2">You're in! 🎉</h2>
-        <p class="text-gray-400 text-sm mb-6">
-          You've successfully joined <strong class="text-white">{{ preview?.organizationUnitName }}</strong>.
+        <h2 class="text-text-strong font-bold text-xl mb-2">You're in! 🎉</h2>
+        <p class="text-text-muted text-sm mb-6">
+          You've successfully joined <strong class="text-text-strong">{{ preview?.organizationUnitName }}</strong>.
         </p>
         <button
           @click="router.push('/')"
@@ -98,7 +98,7 @@ const formatDate = (iso: string) =>
       </div>
 
       <!-- Invite Card -->
-      <div v-else-if="preview" class="bg-dark-surface border border-dark-border rounded-2xl overflow-hidden shadow-2xl">
+      <div v-else-if="preview" class="bg-surface border border-border rounded-2xl overflow-hidden shadow-2xl">
         <!-- Header -->
         <div class="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-5">
           <div class="flex items-center gap-3">
@@ -107,7 +107,7 @@ const formatDate = (iso: string) =>
             </div>
             <div>
               <p class="text-xs text-emerald-400 font-medium uppercase tracking-wider">You've been invited to join</p>
-              <h2 class="text-xl font-bold text-white">{{ preview.organizationUnitName }}</h2>
+              <h2 class="text-xl font-bold text-text-strong">{{ preview.organizationUnitName }}</h2>
             </div>
           </div>
         </div>
@@ -122,17 +122,17 @@ const formatDate = (iso: string) =>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
-            <div class="bg-dark-bg rounded-xl p-3">
-              <p class="text-xs text-gray-500 mb-1">Role you'll receive</p>
-              <p class="text-white font-semibold text-sm">{{ preview.roleName }}</p>
+            <div class="bg-bg rounded-xl p-3">
+              <p class="text-xs text-text-muted mb-1">Role you'll receive</p>
+              <p class="text-text-strong font-semibold text-sm">{{ preview.roleName }}</p>
             </div>
-            <div class="bg-dark-bg rounded-xl p-3">
-              <p class="text-xs text-gray-500 mb-1">Invited by</p>
-              <p class="text-white font-semibold text-sm">{{ preview.createdByUserName || 'A team admin' }}</p>
+            <div class="bg-bg rounded-xl p-3">
+              <p class="text-xs text-text-muted mb-1">Invited by</p>
+              <p class="text-text-strong font-semibold text-sm">{{ preview.createdByUserName || 'A team admin' }}</p>
             </div>
           </div>
 
-          <div class="flex items-center gap-2 text-xs text-gray-500">
+          <div class="flex items-center gap-2 text-xs text-text-muted">
             <Clock class="w-3.5 h-3.5" />
             Expires: {{ formatDate(preview.expiresAt) }}
           </div>
@@ -156,7 +156,7 @@ const formatDate = (iso: string) =>
             {{ isJoining ? 'Joining...' : authStore.isAuthenticated ? 'Accept Invitation' : 'Sign in to Accept' }}
           </button>
 
-          <p v-if="!authStore.isAuthenticated && !preview.isExpired" class="text-center text-xs text-gray-500 mt-3">
+          <p v-if="!authStore.isAuthenticated && !preview.isExpired" class="text-center text-xs text-text-muted mt-3">
             You'll be redirected to sign in, then automatically returned here.
           </p>
         </div>

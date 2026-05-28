@@ -5,6 +5,7 @@ public class User : BaseEntity
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public string? PictureUrl { get; set; }
     public bool IsActive { get; set; } = true;
     public ICollection<UserUnitRole> UnitRoles { get; set; } = new List<UserUnitRole>();
     

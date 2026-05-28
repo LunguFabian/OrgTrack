@@ -1,17 +1,28 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useOrgStore } from '../../stores/orgStore';
 import Sidebar from './Sidebar.vue';
 import Header from './Header.vue';
 
 const isSidebarOpen = ref(false);
+const orgStore = useOrgStore();
 
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value;
 };
+
+onMounted(() => {
+  if (orgStore.tree.length === 0) {
+    orgStore.fetchTree();
+  }
+  if (orgStore.myUnits.length === 0) {
+    orgStore.fetchMyUnits();
+  }
+});
 </script>
 
 <template>
-  <div class="min-h-screen bg-dark-bg text-gray-200">
+  <div class="min-h-screen bg-bg text-text">
     <!-- Black background overlay for mobile -->
     <div 
       v-if="isSidebarOpen" 

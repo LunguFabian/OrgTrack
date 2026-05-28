@@ -11,6 +11,7 @@ public record AuthResult(
     string? Email,
     string? FirstName,
     string? LastName,
+    string? PictureUrl,
     string? ErrorMessage)
 {
     public static AuthResult Success(string accessToken, string refreshToken, User user)
@@ -23,8 +24,9 @@ public record AuthResult(
             Email: user.Email,
             FirstName: user.FirstName,
             LastName: user.LastName,
+            PictureUrl: user.PictureUrl,
             ErrorMessage: null);
 
     public static AuthResult Failed(string error)
-        => new(false, null, null, null, null, null, null, null, error);
+        => new(false, null, null, null, null, null, null, null, null, error);
 }

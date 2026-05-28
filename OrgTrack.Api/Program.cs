@@ -8,6 +8,7 @@ using OrgTrack.Infrastructure.Auth;
 using OrgTrack.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+Console.WriteLine($"===> RULEZ IN MEDIUL: {builder.Environment.EnvironmentName} <===");
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
@@ -17,12 +18,15 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowCredentials());
 });
-builder.Services.AddDbContext<OrgTrackDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("Default"),
-        x => x.MigrationsAssembly("OrgTrack.Infrastructure")
-    )
-);
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<OrgTrackDbContext>(options =>
+        options.UseNpgsql(
+            builder.Configuration.GetConnectionString("Default"),
+            x => x.MigrationsAssembly("OrgTrack.Infrastructure")
+        )
+    );
+}
 var jwtSecret = builder.Configuration["Jwt:Secret"]!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -89,3 +93,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+public partial class Program { }

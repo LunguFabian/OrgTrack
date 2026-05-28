@@ -36,6 +36,7 @@ public class AuthenticateUser(
                 Email = googleUser.Email,
                 FirstName = googleUser.FirstName,
                 LastName = googleUser.LastName,
+                PictureUrl = googleUser.PictureUrl,
                 IsActive = true
             };
             await userRepository.AddAsync(user);
@@ -44,6 +45,7 @@ public class AuthenticateUser(
         {
             user.FirstName = googleUser.FirstName;
             user.LastName = googleUser.LastName;
+            user.PictureUrl = googleUser.PictureUrl;
             user.UpdatedAt = DateTime.UtcNow;
             await userRepository.UpdateAsync(user);
         }

@@ -27,8 +27,21 @@ export const organizationService = {
   },
 
   /** Search for members in the organization by name or email */
-  async searchMembers(query: string): Promise<Array<{id: string, firstName: string, lastName: string, email: string}>> {
+  async searchMembers(query: string): Promise<Array<{id: string, firstName: string, lastName: string, email: string, pictureUrl?: string}>> {
     const response = await api.get(`/organization/search-members?q=${encodeURIComponent(query)}`);
+    return response.data;
+  },
+
+  /** Fetch the public profile of any user */
+  async getUserProfile(userId: string): Promise<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    pictureUrl?: string;
+    units: Array<{ id: string; name: string; type: string; departmentType: string; roleName: string }>;
+  }> {
+    const response = await api.get(`/organization/users/${userId}/profile`);
     return response.data;
   }
 };

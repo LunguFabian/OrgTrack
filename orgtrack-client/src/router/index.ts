@@ -10,6 +10,11 @@ const router = createRouter({
       component: () => import('../views/LoginView.vue')
     },
     {
+      path: '/developer-login',
+      name: 'developer-login',
+      component: () => import('../views/DevLoginView.vue')
+    },
+    {
       path: '/invite/:token',
       name: 'invite',
       component: () => import('../views/InviteView.vue')
@@ -30,6 +35,11 @@ const router = createRouter({
           component: () => import('../views/OrganizationView.vue'),
         },
         {
+          path: 'national-dashboard',
+          name: 'national-dashboard',
+          component: () => import('../views/NationalDashboardView.vue'),
+        },
+        {
           path: 'units/:id',
           name: 'unit-dashboard',
           component: () => import('../views/UnitDashboardView.vue'),
@@ -48,6 +58,11 @@ const router = createRouter({
           path: 'profile',
           name: 'profile',
           component: () => import('../views/ProfileView.vue'),
+        },
+        {
+          path: 'profile/:userId',
+          name: 'user-profile',
+          component: () => import('../views/UserProfileView.vue'),
         }
       ]
     },
@@ -67,11 +82,12 @@ router.beforeEach((to) => {
   const authStore = useAuthStore();
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return '/login'; // Dacă nu e logat, îl trimitem la Login
+    return '/login';
   }
-  if (to.path === '/login' && authStore.isAuthenticated) {
-    return '/'; // Dacă e deja logat, nu are ce căuta pe pagina de Login
+  if ((to.path === '/login' || to.path === '/developer-login') && authStore.isAuthenticated) {
+    return '/';
   }
 });
 
 export default router;
+

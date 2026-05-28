@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { eventsService, type EventDto, type AttendanceReportItem } from '../api/services/events.service';
+import { eventsService, type AttendanceReportItem } from '../api/services/events.service';
+import type { EventDto } from '../types/unit';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { useOrgStore } from '../stores/orgStore';
@@ -117,8 +118,13 @@ const submitRsvp = async (event: EventDto, status: 'Present' | 'Absent' | 'Maybe
   }
 };
 const isLeaderOfEvent = (unitId: string) => {
-  const role = (authStore.user as any)?.unitRoles?.find((r: any) => r.organizationUnitId === unitId);
-  return role?.role?.name?.includes('VP') || role?.role?.name?.includes('TL');
+  // Check if the current user has a leader role in the event's unit by looking at the org tree members
+  const unit = findUnitInTree(orgStore.tree, unitId);
+  if (!unit?.members) return false;
+  const membership = unit.members.find((m: any) => m.userId === authStore.user?.id);
+  if (!membership) return false;
+  const role = membership.roleName || '';
+  return role.includes('President') || role.includes('VP') || role.includes('Leader');
 };
 
 const toggleExpand = async (event: EventDto) => {
@@ -159,7 +165,7 @@ const confirmAttendanceAsLeader = async (event: EventDto, userId: string, curren
 const statusBadge = (status: string) => {
   if (status === 'Present') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
   if (status === 'Absent')  return 'bg-red-500/10 text-red-400 border-red-500/20';
-  if (status === 'NotResponded') return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+  if (status === 'NotResponded') return 'bg-gray-500/10 text-text-muted border-gray-500/20';
   return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
 };
 </script>
@@ -170,20 +176,20 @@ const statusBadge = (status: string) => {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-2xl font-bold text-white tracking-tight">My Events</h2>
-        <p class="text-gray-400 mt-1">
+        <h2 class="text-2xl font-bold text-text-strong tracking-tight">My Events</h2>
+        <p class="text-text-muted mt-1">
           Stay on top of upcoming meetings and activities across your units.
         </p>
       </div>
-      <div class="flex items-center gap-4 bg-dark-bg border border-dark-border rounded-xl px-4 py-2">
+      <div class="flex items-center gap-4 bg-bg border border-border rounded-xl px-4 py-2">
         <div class="flex items-center gap-2">
           <CalendarDays class="w-4 h-4 text-emerald-400" />
-          <span class="text-sm font-medium text-white">{{ upcomingEvents.length }} upcoming</span>
+          <span class="text-sm font-medium text-text-strong">{{ upcomingEvents.length }} upcoming</span>
         </div>
-        <div class="w-px h-4 bg-dark-border"></div>
+        <div class="w-px h-4 bg-border"></div>
         <div class="flex items-center gap-2">
-          <Calendar class="w-4 h-4 text-gray-500" />
-          <span class="text-sm font-medium text-gray-400">{{ pastEvents.length }} past</span>
+          <Calendar class="w-4 h-4 text-text-muted" />
+          <span class="text-sm font-medium text-text-muted">{{ pastEvents.length }} past</span>
         </div>
       </div>
     </div>
@@ -195,12 +201,12 @@ const statusBadge = (status: string) => {
 
     <template v-else>
       <!-- Empty state -->
-      <div v-if="events.length === 0" class="flex flex-col items-center justify-center py-32 text-center bg-dark-surface border border-dark-border rounded-2xl">
-        <div class="w-16 h-16 bg-dark-bg rounded-2xl flex items-center justify-center mb-4 ring-1 ring-dark-border shadow-lg">
-          <CalendarDays class="w-8 h-8 text-gray-500" />
+      <div v-if="events.length === 0" class="flex flex-col items-center justify-center py-32 text-center bg-surface border border-border rounded-2xl">
+        <div class="w-16 h-16 bg-bg rounded-2xl flex items-center justify-center mb-4 ring-1 ring-dark-border shadow-lg">
+          <CalendarDays class="w-8 h-8 text-text-muted" />
         </div>
-        <p class="text-white font-medium text-lg">No events scheduled</p>
-        <p class="text-gray-500 mt-2 max-w-sm">
+        <p class="text-text-strong font-medium text-lg">No events scheduled</p>
+        <p class="text-text-muted mt-2 max-w-sm">
           You don't have any upcoming or past events in your organization units.
         </p>
       </div>
@@ -215,22 +221,22 @@ const statusBadge = (status: string) => {
             <div
               v-for="event in upcomingEvents"
               :key="event.id"
-              class="bg-dark-surface border rounded-xl overflow-hidden transition-all hover:shadow-lg"
+              class="bg-surface border rounded-xl overflow-hidden transition-all hover:shadow-lg"
               :class="isToday(event.startDate)
                 ? 'border-emerald-500/40 shadow-emerald-500/5'
-                : 'border-dark-border hover:border-dark-border/80'"
+                : 'border-border hover:border-border/80'"
             >
               <!-- Event Card Header -->
               <div class="p-5">
                 <div class="flex items-start justify-between gap-4">
                   <!-- Left: Date Block -->
                   <div class="flex items-start gap-4">
-                    <div class="flex-shrink-0 w-14 h-14 rounded-xl bg-dark-bg border border-dark-border flex flex-col items-center justify-center shadow-inner">
-                      <div class="text-[10px] font-bold uppercase text-gray-500 tracking-wider">
+                    <div class="flex-shrink-0 w-14 h-14 rounded-xl bg-bg border border-border flex flex-col items-center justify-center shadow-inner">
+                      <div class="text-[10px] font-bold uppercase text-text-muted tracking-wider">
                         {{ new Date(event.startDate).toLocaleString('en-GB', { month: 'short' }) }}
                       </div>
                       <div class="text-2xl font-black leading-none mt-0.5"
-                        :class="isToday(event.startDate) ? 'text-emerald-400' : 'text-white'"
+                        :class="isToday(event.startDate) ? 'text-emerald-400' : 'text-text-strong'"
                       >
                         {{ new Date(event.startDate).getDate() }}
                       </div>
@@ -239,8 +245,8 @@ const statusBadge = (status: string) => {
                     <!-- Content -->
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 mb-1.5 flex-wrap">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-dark-bg text-gray-300 border border-dark-border flex items-center gap-1">
-                          <Network class="w-3 h-3 text-gray-500" />
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-bg text-text-muted border border-border flex items-center gap-1">
+                          <Network class="w-3 h-3 text-text-muted" />
                           {{ getUnitName(event.organizationUnitId) }}
                         </span>
                         <span v-if="isToday(event.startDate)"
@@ -256,16 +262,16 @@ const statusBadge = (status: string) => {
                           <Repeat class="w-2.5 h-2.5" /> Recurring
                         </span>
                       </div>
-                      <h4 class="text-white font-semibold text-base leading-tight group-hover:text-emerald-400 transition-colors">{{ event.title }}</h4>
-                      <p v-if="event.description" class="text-sm text-gray-400 mt-1 line-clamp-2">{{ event.description }}</p>
+                      <h4 class="text-text-strong font-semibold text-base leading-tight group-hover:text-emerald-400 transition-colors">{{ event.title }}</h4>
+                      <p v-if="event.description" class="text-sm text-text-muted mt-1 line-clamp-2">{{ event.description }}</p>
                       
                       <div class="flex items-center gap-4 mt-3">
-                        <span class="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-                          <Clock class="w-3.5 h-3.5 text-gray-400" />
+                        <span class="flex items-center gap-1.5 text-xs text-text-muted font-medium">
+                          <Clock class="w-3.5 h-3.5 text-text-muted" />
                           {{ formatTime(event.startDate) }} – {{ formatTime(event.endDate) }}
                         </span>
-                        <span class="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-                          <AlarmClock class="w-3.5 h-3.5 text-gray-400" />
+                        <span class="flex items-center gap-1.5 text-xs text-text-muted font-medium">
+                          <AlarmClock class="w-3.5 h-3.5 text-text-muted" />
                           {{ formatDuration(event.startDate, event.endDate) }}
                         </span>
                       </div>
@@ -273,15 +279,15 @@ const statusBadge = (status: string) => {
                   </div>
 
                   <!-- Right: expand -->
-                  <button @click="toggleExpand(event)" class="w-8 h-8 rounded-lg bg-dark-bg border border-dark-border flex items-center justify-center text-gray-500 hover:text-white hover:border-gray-600 transition-all flex-shrink-0 mt-1">
+                  <button @click="toggleExpand(event)" class="w-8 h-8 rounded-lg bg-bg border border-border flex items-center justify-center text-text-muted hover:text-text-strong hover:border-gray-600 transition-all flex-shrink-0 mt-1">
                     <ChevronDown v-if="expandedEventId !== event.id" class="w-4 h-4" />
                     <ChevronUp v-else class="w-4 h-4" />
                   </button>
                 </div>
 
                 <!-- RSVP Buttons -->
-                <div class="flex items-center gap-3 mt-5 pt-4 border-t border-dark-border/50">
-                  <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Your RSVP</span>
+                <div class="flex items-center gap-3 mt-5 pt-4 border-t border-border/50">
+                  <span class="text-xs font-medium uppercase tracking-wider text-text-muted">Your RSVP</span>
                   <button
                     v-for="opt in rsvpOptions"
                     :key="opt.status"
@@ -293,39 +299,39 @@ const statusBadge = (status: string) => {
                     <component :is="opt.icon" class="w-3.5 h-3.5" />
                     {{ opt.label }}
                   </button>
-                  <Loader2 v-if="rsvpLoading === event.id" class="w-4 h-4 text-gray-400 animate-spin ml-auto" />
+                  <Loader2 v-if="rsvpLoading === event.id" class="w-4 h-4 text-text-muted animate-spin ml-auto" />
                 </div>
               </div>
 
               <!-- Expanded: Attendance report (leaders only) -->
-              <div v-if="expandedEventId === event.id" class="border-t border-dark-border bg-dark-bg p-5">
+              <div v-if="expandedEventId === event.id" class="border-t border-border bg-bg p-5">
                 <div v-if="loadingAttendance === event.id" class="flex justify-center py-6">
-                  <Loader2 class="w-6 h-6 animate-spin text-gray-500" />
+                  <Loader2 class="w-6 h-6 animate-spin text-text-muted" />
                 </div>
                 <template v-else-if="isLeaderOfEvent(event.organizationUnitId) && attendanceReports[event.id]">
                   <div class="flex items-center justify-between mb-4">
-                    <h5 class="text-xs font-semibold text-white uppercase tracking-widest flex items-center gap-2">
+                    <h5 class="text-xs font-semibold text-text-strong uppercase tracking-widest flex items-center gap-2">
                       <Users class="w-4 h-4 text-emerald-500" /> 
                       Attendance Report 
-                      <span class="text-gray-500 font-normal normal-case tracking-normal">({{ attendanceReports[event.id].length }} members)</span>
+                      <span class="text-text-muted font-normal normal-case tracking-normal">({{ attendanceReports[event.id].length }} members)</span>
                     </h5>
-                    <span class="text-xs text-gray-500">Click on status to change</span>
+                    <span class="text-xs text-text-muted">Click on status to change</span>
                   </div>
                   
-                  <div v-if="attendanceReports[event.id].length === 0" class="text-sm text-gray-500 text-center py-4 bg-dark-surface rounded-xl border border-dark-border">
+                  <div v-if="attendanceReports[event.id].length === 0" class="text-sm text-text-muted text-center py-4 bg-surface rounded-xl border border-border">
                     No members found in this unit tree.
                   </div>
                   <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div
                       v-for="item in attendanceReports[event.id]"
                       :key="item.userId"
-                      class="flex items-center justify-between bg-dark-surface border border-dark-border rounded-lg p-2.5 transition-colors hover:border-gray-700"
+                      class="flex items-center justify-between bg-surface border border-border rounded-lg p-2.5 transition-colors hover:border-gray-700"
                     >
                       <div class="flex items-center gap-3">
                         <div class="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-[10px] font-bold">
                           {{ item.userName.substring(0, 2).toUpperCase() }}
                         </div>
-                        <span class="text-sm font-medium text-gray-200">{{ item.userName }}</span>
+                        <span class="text-sm font-medium text-text">{{ item.userName }}</span>
                       </div>
                       <button 
                         @click="confirmAttendanceAsLeader(event, item.userId, item.status)"
@@ -336,9 +342,9 @@ const statusBadge = (status: string) => {
                     </div>
                   </div>
                 </template>
-                <div v-else class="text-sm text-gray-500 flex flex-col items-center justify-center py-6 text-center">
+                <div v-else class="text-sm text-text-muted flex flex-col items-center justify-center py-6 text-center">
                   <Users class="w-8 h-8 text-dark-border mb-3" />
-                  <p class="text-gray-300 font-medium">Only leaders can view attendance</p>
+                  <p class="text-text-muted font-medium">Only leaders can view attendance</p>
                   <p class="text-xs mt-1">If you are a leader of this unit, please check your permissions.</p>
                 </div>
               </div>
@@ -348,25 +354,25 @@ const statusBadge = (status: string) => {
 
         <!-- Past Events -->
         <section v-if="pastEvents.length > 0" class="mt-10">
-          <h3 class="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-4 flex items-center gap-2">
+          <h3 class="text-sm font-semibold uppercase tracking-widest text-text-muted mb-4 flex items-center gap-2">
             <Calendar class="w-4 h-4" /> Past Events
           </h3>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <div
               v-for="event in pastEvents"
               :key="event.id"
-              class="bg-dark-surface border border-dark-border rounded-xl p-4 opacity-75 hover:opacity-100 transition-all group"
+              class="bg-surface border border-border rounded-xl p-4 opacity-75 hover:opacity-100 transition-all group"
             >
               <div class="flex items-start justify-between">
                 <div class="flex-1 min-w-0 pr-4">
-                  <p class="text-sm font-medium text-gray-300 group-hover:text-white transition-colors truncate">{{ event.title }}</p>
+                  <p class="text-sm font-medium text-text-muted group-hover:text-text-strong transition-colors truncate">{{ event.title }}</p>
                   <div class="flex items-center gap-2 mt-1.5">
-                    <span class="text-xs text-gray-500">{{ formatDate(event.startDate) }}</span>
-                    <span class="w-1 h-1 rounded-full bg-dark-border"></span>
-                    <span class="text-[10px] font-medium text-gray-400 truncate">{{ getUnitName(event.organizationUnitId) }}</span>
+                    <span class="text-xs text-text-muted">{{ formatDate(event.startDate) }}</span>
+                    <span class="w-1 h-1 rounded-full bg-border"></span>
+                    <span class="text-[10px] font-medium text-text-muted truncate">{{ getUnitName(event.organizationUnitId) }}</span>
                   </div>
                 </div>
-                <div class="w-8 h-8 rounded-lg bg-dark-bg border border-dark-border flex items-center justify-center text-gray-600">
+                <div class="w-8 h-8 rounded-lg bg-bg border border-border flex items-center justify-center text-gray-600">
                   <CheckCircle2 class="w-4 h-4" />
                 </div>
               </div>

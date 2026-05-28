@@ -70,7 +70,7 @@ const unitStyling = computed(() => {
     case 'Committee': return { icon: Building2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' };
     case 'Department': return { icon: Layers, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' };
     case 'Team': return { icon: Shield, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30' };
-    default: return { icon: Globe, color: 'text-gray-400', bg: 'bg-gray-500/10', border: 'border-gray-500/30' };
+    default: return { icon: Globe, color: 'text-text-muted', bg: 'bg-gray-500/10', border: 'border-gray-500/30' };
   }
 });
 const members = computed<UnitMemberDto[]>(() => (unitData.value?.members ?? []) as UnitMemberDto[]);
@@ -94,7 +94,7 @@ const handleRoleUpdated = () => {
     <!-- Back Button -->
     <button
       @click="router.push('/organization')"
-      class="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors group"
+      class="flex items-center gap-2 text-sm text-text-muted hover:text-text-strong transition-colors group"
     >
       <ArrowLeft class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
       Back to Organization
@@ -104,7 +104,7 @@ const handleRoleUpdated = () => {
     <div v-if="isLoading" class="flex justify-center py-20">
       <div class="flex flex-col items-center gap-4">
         <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-gray-400">Loading dashboard...</p>
+        <p class="text-text-muted">Loading dashboard...</p>
       </div>
     </div>
 
@@ -117,7 +117,7 @@ const handleRoleUpdated = () => {
     <!-- Main Content -->
     <template v-else-if="unitData">
       <!-- Header Card -->
-      <div class="bg-dark-surface p-6 rounded-2xl border border-dark-border shadow-sm">
+      <div class="bg-surface p-6 rounded-2xl border border-border shadow-sm">
         <div class="flex items-start justify-between">
           <div class="flex items-start gap-4">
             <div :class="['p-3.5 rounded-xl', unitStyling.bg, unitStyling.border, 'border']">
@@ -129,7 +129,7 @@ const handleRoleUpdated = () => {
                   {{ unitData.type }}
                 </span>
                 <span v-if="unitData.departmentType && unitData.departmentType !== 'None'"
-                  class="px-2.5 py-0.5 rounded-md text-xs font-medium bg-dark-border text-gray-400">
+                  class="px-2.5 py-0.5 rounded-md text-xs font-medium bg-border text-text-muted">
                   {{ unitData.departmentType }}
                 </span>
                 <!-- Current user role badge -->
@@ -138,17 +138,17 @@ const handleRoleUpdated = () => {
                   You: {{ currentUserRole }}
                 </span>
               </div>
-              <h1 class="text-3xl font-bold text-white tracking-tight">{{ unitData.name }}</h1>
-              <p class="text-gray-400 text-sm mt-1 max-w-xl">{{ unitData.description || 'No description provided.' }}</p>
+              <h1 class="text-3xl font-bold text-text-strong tracking-tight">{{ unitData.name }}</h1>
+              <p class="text-text-muted text-sm mt-1 max-w-xl">{{ unitData.description || 'No description provided.' }}</p>
             </div>
           </div>
 
-          <button class="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-border transition-colors" title="Unit Settings">
+          <button class="p-2 rounded-lg text-text-muted hover:text-text-strong hover:bg-border transition-colors" title="Unit Settings">
             <Settings class="w-5 h-5" />
           </button>
           <button
             @click="fetchUnit(true)"
-            :class="['p-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-border transition-colors', isRefreshing ? 'animate-spin' : '']"
+            :class="['p-2 rounded-lg text-text-muted hover:text-text-strong hover:bg-border transition-colors', isRefreshing ? 'animate-spin' : '']"
             title="Refresh members"
           >
             <RefreshCw class="w-5 h-5" />
@@ -156,27 +156,27 @@ const handleRoleUpdated = () => {
         </div>
 
         <!-- Stats Row -->
-        <div class="flex items-center gap-6 mt-6 pt-6 border-t border-dark-border">
+        <div class="flex items-center gap-6 mt-6 pt-6 border-t border-border">
           <div class="flex items-center gap-2 text-sm">
-            <Users class="w-4 h-4 text-gray-500" />
-            <span class="text-white font-semibold">{{ members.length }}</span>
-            <span class="text-gray-500">member{{ members.length !== 1 ? 's' : '' }}</span>
+            <Users class="w-4 h-4 text-text-muted" />
+            <span class="text-text-strong font-semibold">{{ members.length }}</span>
+            <span class="text-text-muted">member{{ members.length !== 1 ? 's' : '' }}</span>
           </div>
           <div class="flex items-center gap-2 text-sm">
-            <KanbanSquare class="w-4 h-4 text-gray-500" />
-            <span class="text-white font-semibold">{{ unitData.children?.length ?? 0 }}</span>
-            <span class="text-gray-500">sub-unit{{ (unitData.children?.length ?? 0) !== 1 ? 's' : '' }}</span>
+            <KanbanSquare class="w-4 h-4 text-text-muted" />
+            <span class="text-text-strong font-semibold">{{ unitData.children?.length ?? 0 }}</span>
+            <span class="text-text-muted">sub-unit{{ (unitData.children?.length ?? 0) !== 1 ? 's' : '' }}</span>
           </div>
         </div>
 
         <!-- Navigation Tabs -->
-        <div class="flex items-center gap-6 mt-6 border-b border-dark-border">
+        <div class="flex items-center gap-6 mt-6 border-b border-border">
           <button
             v-for="tab in tabs"
             :key="tab.id"
             @click="currentTab = tab.id"
             class="flex items-center gap-2 pb-4 text-sm font-medium transition-colors relative"
-            :class="currentTab === tab.id ? 'text-emerald-400' : 'text-gray-400 hover:text-gray-200'"
+            :class="currentTab === tab.id ? 'text-emerald-400' : 'text-text-muted hover:text-text'"
           >
             <component :is="tab.icon" class="w-4 h-4" />
             {{ tab.name }}
@@ -189,7 +189,7 @@ const handleRoleUpdated = () => {
       <!-- Tab Content -->
       <div>
         <!-- Members Tab -->
-        <div v-if="currentTab === 'members'" class="bg-dark-surface border border-dark-border rounded-2xl p-6">
+        <div v-if="currentTab === 'members'" class="bg-surface border border-border rounded-2xl p-6">
           <UnitMembersTab
             :unit-id="unitId"
             :members="members"
@@ -200,17 +200,17 @@ const handleRoleUpdated = () => {
         </div>
 
         <!-- Kanban Tab -->
-        <div v-else-if="currentTab === 'kanban'" class="bg-dark-surface border border-dark-border rounded-2xl p-6">
+        <div v-else-if="currentTab === 'kanban'" class="bg-surface border border-border rounded-2xl p-6">
           <KanbanBoard :unit-id="unitId" :members="members" />
         </div>
 
         <!-- Events Tab -->
-        <div v-else-if="currentTab === 'events'" class="bg-dark-surface border border-dark-border rounded-2xl p-6">
+        <div v-else-if="currentTab === 'events'" class="bg-surface border border-border rounded-2xl p-6">
           <EventsTab :unit-id="unitId" :is-leader="isLeader" />
         </div>
 
         <!-- Analytics Tab -->
-        <div v-else-if="currentTab === 'analytics'" class="bg-dark-surface border border-dark-border rounded-2xl p-6">
+        <div v-else-if="currentTab === 'analytics'" class="bg-surface border border-border rounded-2xl p-6">
           <AnalyticsTab :unit-id="unitId" :members="members" />
         </div>
       </div>

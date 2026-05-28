@@ -196,7 +196,7 @@ public class OrganizationService(
 
         return new UnitMemberDto(
             user.Id, user.FirstName, user.LastName, user.Email,
-            role.Name, userUnitRole.CreatedAt
+            role.Name, userUnitRole.CreatedAt, null, null, user.PictureUrl
         );
     }
 
@@ -213,7 +213,10 @@ public class OrganizationService(
             m.User.LastName,
             m.User.Email,
             m.Role!.Name,
-            m.CreatedAt
+            m.CreatedAt,
+            null,
+            null,
+            m.User.PictureUrl
         )).ToList();
     }
 
@@ -310,7 +313,7 @@ public class OrganizationService(
 
         var members = unit.Members.Select(m => new UnitMemberDto(
             m.UserId, m.User?.FirstName ?? "", m.User?.LastName ?? "",
-            m.User?.Email ?? "", m.Role?.Name ?? "", m.CreatedAt, unit.Name, unit.Id
+            m.User?.Email ?? "", m.Role?.Name ?? "", m.CreatedAt, unit.Name, unit.Id, m.User?.PictureUrl
         )).ToList();
 
         foreach (var child in children)
@@ -321,7 +324,7 @@ public class OrganizationService(
                     .Where(m => m.Role != null && m.Role.Name != "Member")
                     .Select(m => new UnitMemberDto(
                         m.UserId, m.User?.FirstName ?? "", m.User?.LastName ?? "",
-                        m.User?.Email ?? "", m.Role?.Name ?? "", m.CreatedAt, child.Name, child.Id
+                        m.User?.Email ?? "", m.Role?.Name ?? "", m.CreatedAt, child.Name, child.Id, m.User?.PictureUrl
                     ));
                 members.AddRange(childLeaders);
             }
@@ -366,7 +369,7 @@ public class OrganizationService(
     {
         var members = unit.Members?.Select(m => new UnitMemberDto(
             m.UserId, m.User?.FirstName ?? "", m.User?.LastName ?? "",
-            m.User?.Email ?? "", m.Role?.Name ?? "", m.CreatedAt, unit.Name, unit.Id
+            m.User?.Email ?? "", m.Role?.Name ?? "", m.CreatedAt, unit.Name, unit.Id, m.User?.PictureUrl
         )).ToList() ?? new List<UnitMemberDto>();
         if (unit.ChildUnits != null)
         {
@@ -378,7 +381,7 @@ public class OrganizationService(
                         .Where(m => m.Role != null && m.Role.Name != "Member") // Anyone who is not just a standard "Member"
                         .Select(m => new UnitMemberDto(
                             m.UserId, m.User?.FirstName ?? "", m.User?.LastName ?? "",
-                            m.User?.Email ?? "", m.Role?.Name ?? "", m.CreatedAt, child.Name, child.Id
+                            m.User?.Email ?? "", m.Role?.Name ?? "", m.CreatedAt, child.Name, child.Id, m.User?.PictureUrl
                         ));
                     members.AddRange(childLeaders);
                 }

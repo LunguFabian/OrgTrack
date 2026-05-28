@@ -11,5 +11,6 @@ public record TaskDto(
     string? AssigneeName,
     Guid? AssigneeId,
     string CreatorName,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    Guid? ParentTaskId
 );

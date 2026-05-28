@@ -84,20 +84,20 @@ const unitTypes = [
     ></div>
 
     <!-- Modal Content -->
-    <div class="relative bg-dark-surface border border-dark-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+    <div class="relative bg-surface border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
       <!-- Header -->
-      <div class="px-6 py-4 border-b border-dark-border flex justify-between items-center bg-dark-bg/50">
+      <div class="px-6 py-4 border-b border-border flex justify-between items-center bg-bg/50">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
             <Network class="w-5 h-5" />
           </div>
-          <h3 class="text-lg font-bold text-white">
+          <h3 class="text-lg font-bold text-text-strong">
             {{ parentId ? 'Add Sub-unit' : 'Create Root Unit' }}
           </h3>
         </div>
         <button 
           @click="emit('close')"
-          class="text-gray-400 hover:text-white transition-colors p-1"
+          class="text-text-muted hover:text-text-strong transition-colors p-1"
         >
           <X class="w-5 h-5" />
         </button>
@@ -110,31 +110,31 @@ const unitTypes = [
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1.5">Unit Name</label>
+          <label class="block text-sm font-medium text-text-muted mb-1.5">Unit Name</label>
           <input 
             v-model="form.name"
             type="text" 
             placeholder="e.g. Marketing Department" 
-            class="w-full px-4 py-2.5 bg-dark-bg border border-dark-border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+            class="w-full px-4 py-2.5 bg-bg border border-border rounded-xl text-text-strong placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
             autofocus
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1.5">Description</label>
+          <label class="block text-sm font-medium text-text-muted mb-1.5">Description</label>
           <input 
             v-model="form.description"
             type="text" 
             placeholder="e.g. Focuses on marketing campaigns" 
-            class="w-full px-4 py-2.5 bg-dark-bg border border-dark-border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+            class="w-full px-4 py-2.5 bg-bg border border-border rounded-xl text-text-strong placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1.5">Unit Type</label>
+          <label class="block text-sm font-medium text-text-muted mb-1.5">Unit Type</label>
           <select 
             v-model="form.type"
-            class="w-full px-4 py-2.5 bg-dark-bg border border-dark-border rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all appearance-none"
+            class="w-full px-4 py-2.5 bg-bg border border-border rounded-xl text-text-strong focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all appearance-none"
           >
             <option v-for="type in unitTypes" :key="type.value" :value="type.value">
               {{ type.label }}
@@ -143,10 +143,10 @@ const unitTypes = [
         </div>
 
         <div v-if="form.type === 'Department'">
-          <label class="block text-sm font-medium text-gray-300 mb-1.5">Department Category</label>
+          <label class="block text-sm font-medium text-text-muted mb-1.5">Department Category</label>
           <select 
             v-model="form.departmentType"
-            class="w-full px-4 py-2.5 bg-dark-bg border border-dark-border rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all appearance-none"
+            class="w-full px-4 py-2.5 bg-bg border border-border rounded-xl text-text-strong focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all appearance-none"
           >
             <option value="HR">Human Resources (HR)</option>
             <option value="IT">Information Technology (IT)</option>
@@ -158,11 +158,11 @@ const unitTypes = [
         </div>
 
         <!-- Footer Buttons -->
-        <div class="pt-4 flex items-center justify-end gap-3 border-t border-dark-border mt-6">
+        <div class="pt-4 flex items-center justify-end gap-3 border-t border-border mt-6">
           <button 
             type="button"
             @click="emit('close')"
-            class="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-dark-border transition-all"
+            class="px-4 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-text-strong hover:bg-border transition-all"
           >
             Cancel
           </button>

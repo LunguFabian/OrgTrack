@@ -13,7 +13,7 @@ public class TaskService(
 {
     public async Task<TaskDto> CreateTaskAsync(
         string title, string description, TaskPriority priority, 
-        Guid unitId, Guid? assigneeId, DateTime? deadline, Guid creatorId)
+        Guid unitId, Guid? assigneeId, DateTime? deadline, Guid creatorId, Guid? parentTaskId = null, TaskStatus? initialStatus = null)
     {
         var unit = await unitRepository.GetByIdAsync(unitId);
         if (unit == null) throw new ArgumentException("Organization unit not found.");
@@ -25,16 +25,26 @@ public class TaskService(
                 throw new ArgumentException("Assignee must be a member of this organization unit.");
         }
 
+        if (parentTaskId.HasValue)
+        {
+            var parentTask = await taskRepository.GetByIdAsync(parentTaskId.Value);
+            if (parentTask == null)
+                throw new ArgumentException("Parent task not found.");
+            if (parentTask.OrganizationUnitId != unitId)
+                throw new ArgumentException("Parent task must belong to the same organization unit.");
+        }
+
         var task = new TaskItem
         {
             Title = title,
             Description = description,
             Priority = priority,
-            Status = TaskStatus.ToDo,
+            Status = initialStatus ?? TaskStatus.ToDo,
             OrganizationUnitId = unitId,
             AssigneeId = assigneeId,
             Deadline = deadline,
-            CreatorId = creatorId
+            CreatorId = creatorId,
+            ParentTaskId = parentTaskId
         };
 
         await taskRepository.AddAsync(task);
@@ -90,7 +100,7 @@ public class TaskService(
 
     public async Task<TaskDto> UpdateTaskAsync(
         Guid taskId, string title, string description, TaskPriority priority, 
-        Guid? assigneeId, DateTime? deadline, Guid requestingUserId, bool hasManagePermission)
+        Guid? assigneeId, DateTime? deadline, Guid requestingUserId, bool hasManagePermission, Guid? parentTaskId = null)
     {
         var task = await taskRepository.GetByIdAsync(taskId);
         if (task == null) throw new ArgumentException("Task not found.");
@@ -112,11 +122,24 @@ public class TaskService(
                 throw new ArgumentException("Assignee must be a member of this organization unit.");
         }
 
+        if (parentTaskId.HasValue && parentTaskId != task.ParentTaskId)
+        {
+            if (parentTaskId == taskId)
+                throw new ArgumentException("Task cannot be its own parent.");
+                
+            var parentTask = await taskRepository.GetByIdAsync(parentTaskId.Value);
+            if (parentTask == null)
+                throw new ArgumentException("Parent task not found.");
+            if (parentTask.OrganizationUnitId != task.OrganizationUnitId)
+                throw new ArgumentException("Parent task must belong to the same organization unit.");
+        }
+
         task.Title = title;
         task.Description = description;
         task.Priority = priority;
         task.AssigneeId = assigneeId;
         task.Deadline = deadline;
+        task.ParentTaskId = parentTaskId;
         task.UpdatedAt = DateTime.UtcNow;
 
         await taskRepository.UpdateAsync(task);
@@ -150,7 +173,8 @@ public class TaskService(
             task.Assignee != null ? $"{task.Assignee.FirstName} {task.Assignee.LastName}".Trim() : null,
             task.AssigneeId,
             task.Creator != null ? $"{task.Creator.FirstName} {task.Creator.LastName}".Trim() : "Sistem",
-            task.CreatedAt
+            task.CreatedAt,
+            task.ParentTaskId
         );
     }
 }
