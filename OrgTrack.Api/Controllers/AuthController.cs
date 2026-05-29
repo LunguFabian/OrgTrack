@@ -33,7 +33,7 @@ public class AuthController(
         return Ok(new AuthResponse(
             result.AccessToken!,
             result.RefreshToken!,
-            new UserDto(result.UserId!.Value, result.Email!, result.FirstName!, result.LastName!, result.PictureUrl)
+            new UserDto(result.UserId!.Value, result.Email!, result.FirstName!, result.LastName!, result.PictureUrl, result.IsGoogleCalendarConnected)
         ));
     }
 
@@ -54,7 +54,7 @@ public class AuthController(
         return Ok(new AuthResponse(
             result.AccessToken!,
             result.RefreshToken!,
-            new UserDto(result.UserId!.Value, result.Email!, result.FirstName!, result.LastName!, result.PictureUrl)
+            new UserDto(result.UserId!.Value, result.Email!, result.FirstName!, result.LastName!, result.PictureUrl, result.IsGoogleCalendarConnected)
         ));
     }
 
@@ -98,7 +98,30 @@ public class AuthController(
         return Ok(new AuthResponse(
             accessToken,
             refreshToken,
-            new UserDto(user.Id, user.Email, user.FirstName, user.LastName, user.PictureUrl)
+            new UserDto(user.Id, user.Email, user.FirstName, user.LastName, user.PictureUrl, user.IsGoogleCalendarConnected)
         ));
     }
+
+    /// <summary>
+    /// Receives the authorization code from the frontend, exchanges it for tokens, and connects the user's Google Calendar.
+    /// </summary>
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [HttpPost("google-calendar")]
+    public async Task<IActionResult> ConnectGoogleCalendar(
+        [FromBody] GoogleCalendarConnectRequest request,
+        [FromServices] ConnectGoogleCalendar connectUseCase)
+    {
+        var userId = OrgTrack.Api.Extensions.ClaimsPrincipalExtensions.GetUserId(User);
+        
+        var success = await connectUseCase.ExecuteAsync(userId, request.AuthorizationCode, request.RedirectUri);
+        
+        if (!success)
+        {
+            return BadRequest(new { error = "Failed to connect Google Calendar." });
+        }
+
+        return Ok(new { connected = true });
+    }
 }
+
+public record GoogleCalendarConnectRequest(string AuthorizationCode, string RedirectUri);

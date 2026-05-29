@@ -4,6 +4,7 @@ export interface User {
   firstName: string;
   lastName: string;
   pictureUrl?: string;
+  isGoogleCalendarConnected: boolean;
 }
 
 export interface AuthResponse {

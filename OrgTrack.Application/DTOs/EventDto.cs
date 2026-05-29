@@ -13,6 +13,7 @@ public record EventDto(
     List<Guid> InvitedUserIds,
     bool IsRecurring,
     string? RecurrencePattern,
+    string? ExternalCalendarId = null,
     string? CurrentUserRsvp = null
 );
 

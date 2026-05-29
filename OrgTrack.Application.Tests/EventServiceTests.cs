@@ -14,6 +14,7 @@ public class EventServiceTests
     private readonly Mock<IOrganizationUnitRepository> _unitRepositoryMock;
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<IActivityLogRepository> _activityLogRepositoryMock;
+    private readonly Mock<IGoogleCalendarService> _googleCalendarServiceMock;
     private readonly ActivityLogService _activityLogService;
     private readonly EventService _eventService;
 
@@ -23,13 +24,15 @@ public class EventServiceTests
         _unitRepositoryMock = new Mock<IOrganizationUnitRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
         _activityLogRepositoryMock = new Mock<IActivityLogRepository>();
+        _googleCalendarServiceMock = new Mock<IGoogleCalendarService>();
         _activityLogService = new ActivityLogService(_activityLogRepositoryMock.Object);
 
         _eventService = new EventService(
             _eventRepositoryMock.Object,
             _unitRepositoryMock.Object,
             _userRepositoryMock.Object,
-            _activityLogService
+            _activityLogService,
+            _googleCalendarServiceMock.Object
         );
     }
 
@@ -57,7 +60,7 @@ public class EventServiceTests
         _eventRepositoryMock.Setup(r => r.GetByIdAsync(eventId)).ReturnsAsync(ev);
         _eventRepositoryMock.Setup(r => r.UpdateAsync(ev)).Returns(Task.CompletedTask);
 
-        var result = await _eventService.UpdateEventAsync(eventId, "New", "Desc", DateTime.UtcNow, DateTime.UtcNow.AddHours(1), false, null, null);
+        var result = await _eventService.UpdateEventAsync(Guid.NewGuid(), eventId, "New", "Desc", DateTime.UtcNow, DateTime.UtcNow.AddHours(1), false, null, null);
 
         result.Should().NotBeNull();
         result.Title.Should().Be("New");
@@ -72,7 +75,7 @@ public class EventServiceTests
         _eventRepositoryMock.Setup(r => r.GetByIdAsync(eventId)).ReturnsAsync(ev);
         _eventRepositoryMock.Setup(r => r.DeleteAsync(ev)).Returns(Task.CompletedTask);
 
-        await _eventService.DeleteEventAsync(eventId);
+        await _eventService.DeleteEventAsync(Guid.NewGuid(), eventId);
 
         _eventRepositoryMock.Verify(r => r.DeleteAsync(ev), Times.Once);
     }

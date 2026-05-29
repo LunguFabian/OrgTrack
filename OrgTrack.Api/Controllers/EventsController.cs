@@ -86,6 +86,7 @@ public class EventsController(
         try
         {
             var ev = await eventService.UpdateEventAsync(
+                userId,
                 eventId,
                 request.Title,
                 request.Description,
@@ -116,7 +117,7 @@ public class EventsController(
 
         try
         {
-            await eventService.DeleteEventAsync(eventId);
+            await eventService.DeleteEventAsync(userId, eventId);
             return NoContent();
         }
         catch (ArgumentException ex)
@@ -130,7 +131,9 @@ public class EventsController(
     {
         var userId = User.GetUserId();
         bool canRsvp = await permissionService.HasPermissionAsync(userId, unitId, Permissions.EventsView)
-            || await permissionService.IsDirectMemberAsync(userId, unitId);
+            || await permissionService.IsDirectMemberAsync(userId, unitId)
+            || await eventService.IsUserEligibleForEventAsync(eventId, userId);
+            
         if (!canRsvp)
         {
             return Forbid();

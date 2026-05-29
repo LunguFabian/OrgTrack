@@ -51,12 +51,13 @@ builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IGoogleAuthService>(_ =>
-    new GoogleAuthService(builder.Configuration["Google:ClientId"]!)
+    new GoogleAuthService(builder.Configuration["Google:ClientId"]!, builder.Configuration["Google:ClientSecret"]!)
 );
 builder.Services.AddScoped<ITokenService>(_ =>
     new JwtTokenService(jwtSecret)
 );
 builder.Services.AddScoped<AuthenticateUser>();
+builder.Services.AddScoped<ConnectGoogleCalendar>();
 builder.Services.AddScoped<OrganizationService>();
 builder.Services.AddScoped<InviteLinkService>();
 builder.Services.AddScoped<TaskService>();
@@ -64,6 +65,7 @@ builder.Services.AddScoped<EventService>();
 builder.Services.AddScoped<ActivityLogService>();
 builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<IGoogleCalendarService, OrgTrack.Infrastructure.ExternalServices.GoogleCalendarService>();
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());

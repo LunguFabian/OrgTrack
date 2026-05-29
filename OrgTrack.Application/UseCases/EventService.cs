@@ -9,7 +9,8 @@ public class EventService(
     IEventRepository eventRepository,
     IOrganizationUnitRepository unitRepository,
     IUserRepository userRepository,
-    ActivityLogService activityLogService)
+    ActivityLogService activityLogService,
+    IGoogleCalendarService googleCalendarService)
 {
     public async Task<EventDto> CreateEventAsync(
         Guid unitId, string title, string description, DateTime startDate, DateTime endDate,
@@ -33,7 +34,7 @@ public class EventService(
             RecurrencePattern = recurrencePattern,
             ExternalCalendarId = externalCalendarId
         };
-        var targetUnits = invitedUnitIds != null && invitedUnitIds.Any() ? invitedUnitIds : new List<Guid> { unitId };
+        var targetUnits = invitedUnitIds ?? new List<Guid>();
         foreach (var uId in targetUnits)
         {
             newEvent.InvitedUnits.Add(new EventInvitedUnit { OrganizationUnitId = uId });
@@ -49,11 +50,39 @@ public class EventService(
         await eventRepository.AddAsync(newEvent);
         await activityLogService.LogEventCreatedAsync(creatorId, newEvent.Id, newEvent.Title, unitId);
 
+        var creator = await userRepository.GetByIdAsync(creatorId);
+        if (creator != null && creator.IsGoogleCalendarConnected && !string.IsNullOrEmpty(creator.GoogleCalendarAccessToken))
+        {
+            var eligibleUsers = await GetEligibleUsersForEventAsync(newEvent.Id);
+            var attendeeEmails = eligibleUsers.Select(u => u.Email).Where(e => !string.IsNullOrEmpty(e)).ToList();
+
+            var googleEventId = await googleCalendarService.CreateEventAsync(
+                creator.GoogleCalendarAccessToken,
+                creator.GoogleCalendarRefreshToken ?? "",
+                new EventCalendarData
+                {
+                    Title = newEvent.Title,
+                    Description = newEvent.Description,
+                    StartDate = newEvent.StartDate,
+                    EndDate = newEvent.EndDate,
+                    IsRecurring = newEvent.IsRecurring,
+                    RecurrencePattern = newEvent.RecurrencePattern,
+                    AttendeeEmails = attendeeEmails
+                }
+            );
+
+            if (!string.IsNullOrEmpty(googleEventId))
+            {
+                newEvent.ExternalCalendarId = googleEventId;
+                await eventRepository.UpdateAsync(newEvent);
+            }
+        }
+
         return MapToDto(newEvent);
     }
 
     public async Task<EventDto> UpdateEventAsync(
-        Guid eventId, string title, string description, DateTime startDate, DateTime endDate,
+        Guid userId, Guid eventId, string title, string description, DateTime startDate, DateTime endDate,
         bool isRecurring, string? recurrencePattern, string? externalCalendarId,
         List<Guid>? invitedUnitIds = null, List<Guid>? invitedUserIds = null)
     {
@@ -73,7 +102,7 @@ public class EventService(
         ev.UpdatedAt = DateTime.UtcNow;
 
         ev.InvitedUnits.Clear();
-        var targetUnits = invitedUnitIds != null && invitedUnitIds.Any() ? invitedUnitIds : new List<Guid> { ev.OrganizationUnitId };
+        var targetUnits = invitedUnitIds ?? new List<Guid>();
         foreach (var uId in targetUnits)
         {
             ev.InvitedUnits.Add(new EventInvitedUnit { OrganizationUnitId = uId, EventId = ev.Id });
@@ -89,13 +118,53 @@ public class EventService(
         }
 
         await eventRepository.UpdateAsync(ev);
+
+        if (!string.IsNullOrEmpty(ev.ExternalCalendarId))
+        {
+            var user = await userRepository.GetByIdAsync(userId);
+            if (user != null && user.IsGoogleCalendarConnected && !string.IsNullOrEmpty(user.GoogleCalendarAccessToken))
+            {
+                var eligibleUsers = await GetEligibleUsersForEventAsync(ev.Id);
+                var attendeeEmails = eligibleUsers.Select(u => u.Email).Where(e => !string.IsNullOrEmpty(e)).ToList();
+
+                await googleCalendarService.UpdateEventAsync(
+                    user.GoogleCalendarAccessToken,
+                    user.GoogleCalendarRefreshToken ?? "",
+                    ev.ExternalCalendarId,
+                    new EventCalendarData
+                    {
+                        Title = ev.Title,
+                        Description = ev.Description,
+                        StartDate = ev.StartDate,
+                        EndDate = ev.EndDate,
+                        IsRecurring = ev.IsRecurring,
+                        RecurrencePattern = ev.RecurrencePattern,
+                        AttendeeEmails = attendeeEmails
+                    }
+                );
+            }
+        }
+
         return MapToDto(ev);
     }
 
-    public async Task DeleteEventAsync(Guid eventId)
+    public async Task DeleteEventAsync(Guid userId, Guid eventId)
     {
         var ev = await eventRepository.GetByIdAsync(eventId);
         if (ev == null) throw new ArgumentException("Event not found.");
+
+        if (!string.IsNullOrEmpty(ev.ExternalCalendarId))
+        {
+            var user = await userRepository.GetByIdAsync(userId);
+            if (user != null && user.IsGoogleCalendarConnected && !string.IsNullOrEmpty(user.GoogleCalendarAccessToken))
+            {
+                await googleCalendarService.DeleteEventAsync(
+                    user.GoogleCalendarAccessToken,
+                    user.GoogleCalendarRefreshToken ?? "",
+                    ev.ExternalCalendarId
+                );
+            }
+        }
 
         await eventRepository.DeleteAsync(ev);
     }
@@ -149,7 +218,7 @@ public class EventService(
         await activityLogService.LogAttendanceConfirmedAsync(userId, userId, eventId, status.ToString(), ev.OrganizationUnitId);
     }
 
-    public async Task<IEnumerable<AttendanceReportItemDto>> GetAttendanceReportAsync(Guid eventId)
+    private async Task<List<User>> GetEligibleUsersForEventAsync(Guid eventId)
     {
         var ev = await eventRepository.GetByIdAsync(eventId);
         if (ev == null) throw new ArgumentException("Event not found.");
@@ -179,6 +248,18 @@ public class EventService(
                 eligibleUsers.Add(user);
             }
         }
+        return eligibleUsers!;
+    }
+
+    public async Task<bool> IsUserEligibleForEventAsync(Guid eventId, Guid userId)
+    {
+        var eligibleUsers = await GetEligibleUsersForEventAsync(eventId);
+        return eligibleUsers.Any(u => u.Id == userId);
+    }
+
+    public async Task<IEnumerable<AttendanceReportItemDto>> GetAttendanceReportAsync(Guid eventId)
+    {
+        var eligibleUsers = await GetEligibleUsersForEventAsync(eventId);
         var rsvps = await eventRepository.GetAttendanceReportAsync(eventId);
         var rsvpDict = rsvps.ToDictionary(r => r.UserId, r => r.Status);
         return eligibleUsers.Select(u => new AttendanceReportItemDto(
@@ -201,6 +282,7 @@ public class EventService(
             ev.InvitedUsers?.Select(u => u.UserId).ToList() ?? new List<Guid>(),
             ev.IsRecurring,
             ev.RecurrencePattern,
+            ev.ExternalCalendarId,
             currentUserRsvp
         );
     }

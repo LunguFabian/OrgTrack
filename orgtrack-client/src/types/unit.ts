@@ -61,6 +61,7 @@ export interface EventDto {
   organizationUnitId: string;
   invitedUnitIds?: string[];
   invitedUserIds?: string[];
+  externalCalendarId?: string;
   createdAt: string;
   currentUserRsvp?: string;
 }

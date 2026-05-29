@@ -87,8 +87,8 @@ const isTomorrow = (iso: string) => {
 const findUnitInTree = (nodes: any[], id: string): any => {
   for (const node of nodes) {
     if (node.id === id) return node;
-    if (node.childUnits && node.childUnits.length > 0) {
-      const found = findUnitInTree(node.childUnits, id);
+    if (node.children && node.children.length > 0) {
+      const found = findUnitInTree(node.children, id);
       if (found) return found;
     }
   }
@@ -261,6 +261,11 @@ const statusBadge = (status: string) => {
                           class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-500/15 text-purple-400 border border-purple-500/20">
                           <Repeat class="w-2.5 h-2.5" /> Recurring
                         </span>
+                        <a v-if="event.externalCalendarId"
+                          :href="'https://calendar.google.com/calendar/r'" target="_blank"
+                          class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-400 border border-blue-500/20 hover:bg-blue-500/25 transition-colors cursor-pointer">
+                          <Calendar class="w-2.5 h-2.5" /> Synced to Calendar
+                        </a>
                       </div>
                       <h4 class="text-text-strong font-semibold text-base leading-tight group-hover:text-emerald-400 transition-colors">{{ event.title }}</h4>
                       <p v-if="event.description" class="text-sm text-text-muted mt-1 line-clamp-2">{{ event.description }}</p>
@@ -366,10 +371,15 @@ const statusBadge = (status: string) => {
               <div class="flex items-start justify-between">
                 <div class="flex-1 min-w-0 pr-4">
                   <p class="text-sm font-medium text-text-muted group-hover:text-text-strong transition-colors truncate">{{ event.title }}</p>
-                  <div class="flex items-center gap-2 mt-1.5">
+                  <div class="flex items-center gap-2 mt-1.5 flex-wrap">
                     <span class="text-xs text-text-muted">{{ formatDate(event.startDate) }}</span>
                     <span class="w-1 h-1 rounded-full bg-border"></span>
                     <span class="text-[10px] font-medium text-text-muted truncate">{{ getUnitName(event.organizationUnitId) }}</span>
+                    <a v-if="event.externalCalendarId"
+                        :href="'https://calendar.google.com/calendar/r'" target="_blank"
+                        class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/25 transition-colors cursor-pointer">
+                        GCAL
+                    </a>
                   </div>
                 </div>
                 <div class="w-8 h-8 rounded-lg bg-bg border border-border flex items-center justify-center text-gray-600">

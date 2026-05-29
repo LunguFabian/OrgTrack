@@ -4,13 +4,17 @@ import { useAuthStore } from '../stores/authStore';
 import { organizationService } from '../api/services/organization.service';
 import { analyticsService, type MemberActivityScoreDto } from '../api/services/analytics.service';
 import type { OrganizationUnitDto } from '../types/organization';
-import { Activity, CheckSquare, CalendarCheck, Shield, Building2, Mail, Loader2, ArrowLeft } from 'lucide-vue-next';
+import { Activity, CheckSquare, CalendarCheck, Shield, Building2, Mail, Loader2, ArrowLeft, Calendar } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
+import { api } from '../api/axios';
+import { useToastStore } from '../stores/toastStore';
 
 const authStore = useAuthStore();
 const router = useRouter();
+const toastStore = useToastStore();
 
 const isLoading = ref(true);
+const isConnectingCalendar = ref(false);
 const score = ref<MemberActivityScoreDto | null>(null);
 const myUnits = ref<OrganizationUnitDto[]>([]);
 
@@ -30,6 +34,68 @@ onMounted(async () => {
     isLoading.value = false;
   }
 });
+
+const connectGoogleCalendar = async () => {
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  if (!GOOGLE_CLIENT_ID) {
+    toastStore.showToast('Google Client ID is not configured.', 'error');
+    return;
+  }
+
+  isConnectingCalendar.value = true;
+
+  const initClient = () => {
+    const client = (window as any).google.accounts.oauth2.initCodeClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/calendar.events',
+      ux_mode: 'popup',
+      callback: async (response: any) => {
+        if (response.code) {
+          try {
+            await api.post('/auth/google-calendar', {
+              authorizationCode: response.code,
+              redirectUri: window.location.origin
+            });
+            
+            if (authStore.user) {
+              authStore.user.isGoogleCalendarConnected = true;
+              localStorage.setItem('user', JSON.stringify(authStore.user));
+            }
+            
+            toastStore.showToast('Google Calendar connected successfully!', 'success');
+          } catch (err) {
+            toastStore.showToast('Failed to connect Google Calendar.', 'error');
+          } finally {
+            isConnectingCalendar.value = false;
+          }
+        } else {
+          isConnectingCalendar.value = false;
+        }
+      },
+      error_callback: () => {
+        toastStore.showToast('Google Authorization failed.', 'error');
+        isConnectingCalendar.value = false;
+      }
+    });
+
+    client.requestCode();
+  };
+
+  if (!(window as any).google) {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = initClient;
+    script.onerror = () => {
+      toastStore.showToast('Failed to load Google script.', 'error');
+      isConnectingCalendar.value = false;
+    };
+    document.head.appendChild(script);
+  } else {
+    initClient();
+  }
+};
 </script>
 
 <template>
@@ -83,6 +149,32 @@ onMounted(async () => {
                 <span class="text-sm text-text-muted ml-1">pts</span>
               </div>
             </div>
+          </div>
+
+          <div class="mt-6 pt-6 border-t border-border text-left">
+            <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">Integrations</h3>
+            
+            <div v-if="authStore.user?.isGoogleCalendarConnected" class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <Calendar class="w-5 h-5 text-emerald-400" />
+                <span class="text-sm font-medium text-emerald-400">Google Calendar</span>
+              </div>
+              <span class="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded-md">Connected ✓</span>
+            </div>
+            
+            <button 
+              v-else 
+              @click="connectGoogleCalendar" 
+              :disabled="isConnectingCalendar"
+              class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
+            >
+              <Loader2 v-if="isConnectingCalendar" class="w-4 h-4 animate-spin" />
+              <Calendar v-else class="w-4 h-4" />
+              {{ isConnectingCalendar ? 'Connecting...' : 'Connect Google Calendar' }}
+            </button>
+            <p class="text-xs text-text-muted mt-2 text-center">
+              Automatically sync your OrgTrack events to Google Calendar.
+            </p>
           </div>
         </div>
       </div>
