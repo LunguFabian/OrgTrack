@@ -24,10 +24,16 @@ public class TaskServiceTests
         _activityLogRepositoryMock = new Mock<IActivityLogRepository>();
         _activityLogService = new ActivityLogService(_activityLogRepositoryMock.Object);
 
+        var notificationRepoMock = new Mock<INotificationRepository>();
+        var realtimeNotifierMock = new Mock<IRealtimeNotifier>();
+        var notificationService = new NotificationService(notificationRepoMock.Object, realtimeNotifierMock.Object);
+
         _taskService = new TaskService(
             _taskRepositoryMock.Object,
             _unitRepositoryMock.Object,
-            _activityLogService
+            _activityLogService,
+            notificationService,
+            realtimeNotifierMock.Object
         );
     }
 

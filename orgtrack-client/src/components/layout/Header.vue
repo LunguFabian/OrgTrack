@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useAuthStore } from '../../stores/authStore';
+import { useNotificationStore } from '../../stores/notificationStore';
 import { useRouter } from 'vue-router';
 import { organizationService } from '../../api/services/organization.service';
+import type { NotificationDto } from '../../api/services/notifications.service';
 import { LogOut, Bell, Search, Menu, User, Sun, Moon, Loader2 } from 'lucide-vue-next';
 import { useDark, useToggle } from '@vueuse/core';
 
@@ -10,12 +12,15 @@ const isDark = useDark();
 const toggleDark = useToggle(isDark);
 
 const authStore = useAuthStore();
+const notificationStore = useNotificationStore();
 const router = useRouter();
 
 defineEmits(['toggle-sidebar']);
 
 const isProfileMenuOpen = ref(false);
+const isNotificationOpen = ref(false);
 const dropdownRef = ref<HTMLElement | null>(null);
+const notificationDropdownRef = ref<HTMLElement | null>(null);
 
 // --- Search state ---
 const searchQuery = ref('');
@@ -81,6 +86,36 @@ const handleClickOutside = (e: MouseEvent) => {
   if (searchContainerRef.value && !searchContainerRef.value.contains(e.target as Node)) {
     showSearchDropdown.value = false;
   }
+  if (notificationDropdownRef.value && !notificationDropdownRef.value.contains(e.target as Node)) {
+    isNotificationOpen.value = false;
+  }
+};
+
+const handleNotificationClick = (n: NotificationDto) => {
+  if (!n.isRead) {
+    notificationStore.markAsRead(n.id);
+  }
+  isNotificationOpen.value = false;
+  // Navigate based on notification type
+  if (n.relatedEntityType === 'Task') {
+    router.push('/my-tasks');
+  } else if (n.relatedEntityType === 'Event') {
+    router.push('/events');
+  }
+};
+
+const formatTimeAgo = (iso: string) => {
+  const now = new Date();
+  const date = new Date(iso);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 };
 
 onMounted(() => {
@@ -167,10 +202,53 @@ onUnmounted(() => {
         <Moon v-else class="w-5 h-5" />
       </button>
 
-      <button class="text-text-muted hover:text-text-strong transition-colors relative p-2 rounded-full hover:bg-surface-hover">
-        <Bell class="w-5 h-5" />
-        <span class="absolute top-1 right-1 block h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-bg"></span>
-      </button>
+      <div class="relative" ref="notificationDropdownRef">
+        <button @click="isNotificationOpen = !isNotificationOpen" class="text-text-muted hover:text-text-strong transition-colors relative p-2 rounded-full hover:bg-surface-hover">
+          <Bell class="w-5 h-5" />
+          <span v-if="notificationStore.unreadCount > 0" class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 ring-2 ring-bg">
+            {{ notificationStore.unreadCount > 99 ? '99+' : notificationStore.unreadCount }}
+          </span>
+        </button>
+
+        <!-- Notification Dropdown -->
+        <div 
+          v-if="isNotificationOpen"
+          class="absolute right-0 mt-3 w-96 bg-surface border border-border rounded-xl shadow-2xl z-50 overflow-hidden max-h-[480px] flex flex-col"
+        >
+          <div class="px-4 py-3 border-b border-border flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-text-strong">Notifications</h3>
+            <button 
+              v-if="notificationStore.unreadCount > 0"
+              @click="notificationStore.markAllAsRead()"
+              class="text-xs text-emerald-400 hover:text-emerald-300 font-medium"
+            >
+              Mark all as read
+            </button>
+          </div>
+
+          <div class="overflow-y-auto flex-1">
+            <div v-if="notificationStore.notifications.length === 0" class="px-4 py-10 text-center">
+              <Bell class="w-8 h-8 text-text-muted mx-auto mb-2 opacity-30" />
+              <p class="text-sm text-text-muted">No notifications yet</p>
+            </div>
+
+            <button
+              v-for="n in notificationStore.notifications"
+              :key="n.id"
+              @click="handleNotificationClick(n)"
+              class="w-full text-left px-4 py-3 border-b border-border last:border-b-0 hover:bg-emerald-500/5 transition-colors flex items-start gap-3"
+              :class="{ 'bg-emerald-500/5': !n.isRead }"
+            >
+              <div class="mt-0.5 w-2 h-2 rounded-full flex-shrink-0" :class="n.isRead ? 'bg-transparent' : 'bg-emerald-500'"></div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-text-strong truncate">{{ n.title }}</p>
+                <p class="text-xs text-text-muted mt-0.5 line-clamp-2">{{ n.message }}</p>
+                <p class="text-[10px] text-text-muted mt-1">{{ formatTimeAgo(n.createdAt) }}</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div class="h-6 w-px bg-border"></div>
 

@@ -9,7 +9,9 @@ namespace OrgTrack.Application.UseCases;
 public class TaskService(
     ITaskRepository taskRepository,
     IOrganizationUnitRepository unitRepository,
-    ActivityLogService activityLogService)
+    ActivityLogService activityLogService,
+    NotificationService notificationService,
+    IRealtimeNotifier realtimeNotifier)
 {
     public async Task<TaskDto> CreateTaskAsync(
         string title, string description, TaskPriority priority, 
@@ -52,7 +54,21 @@ public class TaskService(
         var savedTask = await taskRepository.GetByIdAsync(task.Id);
         await activityLogService.LogTaskCreatedAsync(creatorId, task.Id, task.Title, unitId);
 
-        return MapToDto(savedTask!);
+        var dto = MapToDto(savedTask!);
+
+        // Real-time: notify unit group
+        await realtimeNotifier.SendToGroupAsync($"Unit_{unitId}", "TaskCreated", dto);
+
+        // Notification: notify assignee
+        if (assigneeId.HasValue && assigneeId.Value != creatorId)
+        {
+            await notificationService.CreateAndSendAsync(
+                assigneeId.Value, "TaskAssigned", "New Task Assigned",
+                $"You have been assigned to \"{title}\"",
+                task.Id, "Task", creatorId);
+        }
+
+        return dto;
     }
 
     public async Task<IEnumerable<TaskDto>> GetTasksByUnitAsync(Guid unitId)
@@ -94,8 +110,29 @@ public class TaskService(
             requestingUserId, task.Id, oldStatus, newStatus.ToString(), task.OrganizationUnitId);
         if (newStatus == TaskStatus.Done)
             await activityLogService.LogTaskDoneAsync(requestingUserId, task.Id, task.Title, task.OrganizationUnitId);
+        var dto = MapToDto(task);
 
-        return MapToDto(task);
+        // Real-time: notify unit group
+        await realtimeNotifier.SendToGroupAsync($"Unit_{task.OrganizationUnitId}", "TaskUpdated", dto);
+
+        // Notification: notify assignee if task moved to Done
+        if (newStatus == TaskStatus.Done && task.AssigneeId.HasValue && task.AssigneeId.Value != requestingUserId)
+        {
+            await notificationService.CreateAndSendAsync(
+                task.AssigneeId.Value, "TaskStatusChanged", "Task Completed",
+                $"Your task \"{task.Title}\" has been approved and marked as Done!",
+                task.Id, "Task", requestingUserId);
+        }
+        // Notification: notify assignee when their task is moved to Review by leader
+        else if (newStatus == TaskStatus.WaitingForApproval && task.AssigneeId.HasValue && task.AssigneeId.Value != requestingUserId)
+        {
+            await notificationService.CreateAndSendAsync(
+                task.AssigneeId.Value, "TaskStatusChanged", "Task Status Changed",
+                $"Your task \"{task.Title}\" was moved to Review",
+                task.Id, "Task", requestingUserId);
+        }
+
+        return dto;
     }
 
     public async Task<TaskDto> UpdateTaskAsync(
@@ -134,6 +171,8 @@ public class TaskService(
                 throw new ArgumentException("Parent task must belong to the same organization unit.");
         }
 
+        var oldAssigneeId = task.AssigneeId;
+
         task.Title = title;
         task.Description = description;
         task.Priority = priority;
@@ -144,7 +183,41 @@ public class TaskService(
 
         await taskRepository.UpdateAsync(task);
 
-        return MapToDto(task);
+        var dto = MapToDto(task);
+
+        // Real-time: notify unit group
+        await realtimeNotifier.SendToGroupAsync($"Unit_{task.OrganizationUnitId}", "TaskUpdated", dto);
+
+        // Notifications
+        if (oldAssigneeId != assigneeId)
+        {
+            // Notify new assignee
+            if (assigneeId.HasValue && assigneeId.Value != requestingUserId)
+            {
+                await notificationService.CreateAndSendAsync(
+                    assigneeId.Value, "TaskAssigned", "Task Reassigned",
+                    $"You have been assigned to \"{title}\"",
+                    task.Id, "Task", requestingUserId);
+            }
+            // Notify old assignee
+            if (oldAssigneeId.HasValue && oldAssigneeId.Value != requestingUserId)
+            {
+                await notificationService.CreateAndSendAsync(
+                    oldAssigneeId.Value, "TaskUnassigned", "Task Unassigned",
+                    $"You are no longer assigned to \"{title}\"",
+                    task.Id, "Task", requestingUserId);
+            }
+        }
+        else if (assigneeId.HasValue && assigneeId.Value != requestingUserId)
+        {
+            // Assignee stayed the same, just notify them of the edit
+            await notificationService.CreateAndSendAsync(
+                assigneeId.Value, "TaskUpdated", "Task Updated",
+                $"The task \"{title}\" has been modified.",
+                task.Id, "Task", requestingUserId);
+        }
+
+        return dto;
     }
 
     public async Task DeleteTaskAsync(Guid taskId, Guid requestingUserId, bool hasManagePermission)
@@ -156,8 +229,12 @@ public class TaskService(
         {
             throw new InvalidOperationException("You can only delete tasks created by you.");
         }
-
+        var unitId = task.OrganizationUnitId;
+        var taskIdToDelete = task.Id;
         await taskRepository.DeleteAsync(task);
+
+        // Real-time: notify unit group
+        await realtimeNotifier.SendToGroupAsync($"Unit_{unitId}", "TaskDeleted", new { id = taskIdToDelete });
     }
 
     private static TaskDto MapToDto(TaskItem task)
@@ -172,6 +249,7 @@ public class TaskService(
             task.OrganizationUnitId,
             task.Assignee != null ? $"{task.Assignee.FirstName} {task.Assignee.LastName}".Trim() : null,
             task.AssigneeId,
+            task.Assignee?.PictureUrl,
             task.Creator != null ? $"{task.Creator.FirstName} {task.Creator.LastName}".Trim() : "Sistem",
             task.CreatedAt,
             task.ParentTaskId

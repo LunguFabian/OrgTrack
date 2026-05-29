@@ -10,6 +10,7 @@ public record TaskDto(
     Guid OrganizationUnitId,
     string? AssigneeName,
     Guid? AssigneeId,
+    string? AssigneeProfilePictureUrl,
     string CreatorName,
     DateTime CreatedAt,
     Guid? ParentTaskId

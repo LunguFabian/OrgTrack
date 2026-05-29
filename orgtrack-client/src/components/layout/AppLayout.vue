@@ -1,23 +1,35 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useOrgStore } from '../../stores/orgStore';
+import { useNotificationStore } from '../../stores/notificationStore';
+import { signalrService } from '../../api/services/signalr.service';
 import Sidebar from './Sidebar.vue';
 import Header from './Header.vue';
 
 const isSidebarOpen = ref(false);
 const orgStore = useOrgStore();
+const notificationStore = useNotificationStore();
 
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value;
 };
 
-onMounted(() => {
+onMounted(async () => {
   if (orgStore.tree.length === 0) {
     orgStore.fetchTree();
   }
   if (orgStore.myUnits.length === 0) {
     orgStore.fetchMyUnits();
   }
+
+  // Start SignalR connection and fetch notifications
+  await signalrService.start();
+  notificationStore.initRealtimeListeners();
+  notificationStore.fetchNotifications();
+});
+
+onUnmounted(() => {
+  signalrService.stop();
 });
 </script>
 

@@ -95,7 +95,10 @@ const subTasksProgress = computed(() => {
 
       <!-- Assignee Avatar -->
       <div v-if="task.assigneeName" class="relative group/avatar">
-        <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold ring-2 ring-bg" title="Assigned to">
+        <div v-if="task.assigneeProfilePictureUrl" class="w-6 h-6 rounded-full overflow-hidden ring-2 ring-bg" title="Assigned to">
+          <img :src="task.assigneeProfilePictureUrl" alt="Avatar" class="w-full h-full object-cover" />
+        </div>
+        <div v-else class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold ring-2 ring-bg" title="Assigned to">
           {{ task.assigneeName.substring(0, 2).toUpperCase() }}
         </div>
         <!-- Tooltip -->

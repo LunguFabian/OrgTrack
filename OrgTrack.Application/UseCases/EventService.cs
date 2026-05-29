@@ -10,7 +10,8 @@ public class EventService(
     IOrganizationUnitRepository unitRepository,
     IUserRepository userRepository,
     ActivityLogService activityLogService,
-    IGoogleCalendarService googleCalendarService)
+    IGoogleCalendarService googleCalendarService,
+    NotificationService notificationService)
 {
     public async Task<EventDto> CreateEventAsync(
         Guid unitId, string title, string description, DateTime startDate, DateTime endDate,
@@ -53,7 +54,7 @@ public class EventService(
         var creator = await userRepository.GetByIdAsync(creatorId);
         if (creator != null && creator.IsGoogleCalendarConnected && !string.IsNullOrEmpty(creator.GoogleCalendarAccessToken))
         {
-            var eligibleUsers = await GetEligibleUsersForEventAsync(newEvent.Id);
+            var eligibleUsers = await GetEligibleUsersForEventAsync(newEvent);
             var attendeeEmails = eligibleUsers.Select(u => u.Email).Where(e => !string.IsNullOrEmpty(e)).ToList();
 
             var googleEventId = await googleCalendarService.CreateEventAsync(
@@ -75,6 +76,18 @@ public class EventService(
             {
                 newEvent.ExternalCalendarId = googleEventId;
                 await eventRepository.UpdateAsync(newEvent);
+            }
+        }
+        // Notify invited users about the new event
+        var invitedUsers = await GetEligibleUsersForEventAsync(newEvent);
+        foreach (var user in invitedUsers)
+        {
+            if (user.Id != creatorId)
+            {
+                await notificationService.CreateAndSendAsync(
+                    user.Id, "EventCreated", "New Event",
+                    $"You have been invited to \"{title}\"",
+                    newEvent.Id, "Event", creatorId);
             }
         }
 
@@ -124,7 +137,7 @@ public class EventService(
             var user = await userRepository.GetByIdAsync(userId);
             if (user != null && user.IsGoogleCalendarConnected && !string.IsNullOrEmpty(user.GoogleCalendarAccessToken))
             {
-                var eligibleUsers = await GetEligibleUsersForEventAsync(ev.Id);
+                var eligibleUsers = await GetEligibleUsersForEventAsync(ev);
                 var attendeeEmails = eligibleUsers.Select(u => u.Email).Where(e => !string.IsNullOrEmpty(e)).ToList();
 
                 await googleCalendarService.UpdateEventAsync(
@@ -142,6 +155,19 @@ public class EventService(
                         AttendeeEmails = attendeeEmails
                     }
                 );
+            }
+        }
+
+        // Notify invited users about the event edit
+        var invitedUsers = await GetEligibleUsersForEventAsync(ev);
+        foreach (var user in invitedUsers)
+        {
+            if (user.Id != userId) // userId is the person making the edit
+            {
+                await notificationService.CreateAndSendAsync(
+                    user.Id, "EventUpdated", "Event Updated",
+                    $"The event \"{title}\" has been modified.",
+                    ev.Id, "Event", userId);
             }
         }
 
@@ -222,6 +248,11 @@ public class EventService(
     {
         var ev = await eventRepository.GetByIdAsync(eventId);
         if (ev == null) throw new ArgumentException("Event not found.");
+        return await GetEligibleUsersForEventAsync(ev);
+    }
+
+    private async Task<List<User>> GetEligibleUsersForEventAsync(Event ev)
+    {
         var allRelevantUnitIds = new HashSet<Guid>();
         foreach (var iu in ev.InvitedUnits)
         {

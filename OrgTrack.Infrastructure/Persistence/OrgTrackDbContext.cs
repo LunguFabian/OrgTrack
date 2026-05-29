@@ -20,6 +20,7 @@ public class OrgTrackDbContext : DbContext
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<InviteLink> InviteLinks => Set<InviteLink>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -136,5 +137,20 @@ public class OrgTrackDbContext : DbContext
         modelBuilder.Entity<TaskItem>().Property(e => e.Status).HasConversion<string>();
         modelBuilder.Entity<TaskItem>().Property(e => e.Priority).HasConversion<string>();
         modelBuilder.Entity<EventRsvp>().Property(e => e.Status).HasConversion<string>();
+
+        modelBuilder.Entity<Notification>()
+            .HasOne(n => n.User)
+            .WithMany()
+            .HasForeignKey(n => n.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Notification>()
+            .HasOne(n => n.Actor)
+            .WithMany()
+            .HasForeignKey(n => n.ActorId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Notification>()
+            .HasIndex(n => new { n.UserId, n.IsRead });
     }
 }

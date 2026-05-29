@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Plus, ListTodo, Loader2, ClipboardCheck, CheckCircle2 } from 'lucide-vue-next';
 import { tasksService } from '../../api/services/tasks.service';
 import { organizationService } from '../../api/services/organization.service';
+import { signalrService } from '../../api/services/signalr.service';
 import { useToastStore } from '../../stores/toastStore';
 import { useAuthStore } from '../../stores/authStore';
 import type { TaskDto, UnitMemberDto } from '../../types/unit';
@@ -54,7 +55,52 @@ const fetchTasks = async () => {
   }
 };
 
-onMounted(fetchTasks);
+onMounted(async () => {
+  await fetchTasks();
+
+  if (props.mode === 'unit' && props.unitId) {
+    await signalrService.joinUnitGroup(props.unitId);
+  } else if (props.mode === 'me' && myUnits.value.length > 0) {
+    for (const unit of myUnits.value) {
+      await signalrService.joinUnitGroup(unit.id);
+    }
+  }
+
+  // Attach real-time listeners
+  signalrService.on('TaskCreated', (task: TaskDto) => {
+    if (props.mode === 'unit' || (props.mode === 'me' && task.assigneeId === authStore.user?.id)) {
+      if (!tasks.value.some(t => t.id === task.id)) {
+        tasks.value.push(task);
+      }
+    }
+  });
+
+  signalrService.on('TaskUpdated', (task: TaskDto) => {
+    const index = tasks.value.findIndex(t => t.id === task.id);
+    if (index !== -1) {
+      tasks.value[index] = task;
+    } else if (props.mode === 'me' && task.assigneeId === authStore.user?.id) {
+      tasks.value.push(task);
+    }
+  });
+
+  signalrService.on('TaskDeleted', (data: { id: string }) => {
+    tasks.value = tasks.value.filter(t => t.id !== data.id && t.parentTaskId !== data.id);
+  });
+});
+
+onUnmounted(() => {
+  if (props.mode === 'unit' && props.unitId) {
+    signalrService.leaveUnitGroup(props.unitId);
+  } else if (props.mode === 'me' && myUnits.value.length > 0) {
+    for (const unit of myUnits.value) {
+      signalrService.leaveUnitGroup(unit.id);
+    }
+  }
+  signalrService.off('TaskCreated');
+  signalrService.off('TaskUpdated');
+  signalrService.off('TaskDeleted');
+});
 
 const tasksByColumn = computed(() => {
   const grouped: Record<string, TaskDto[]> = {

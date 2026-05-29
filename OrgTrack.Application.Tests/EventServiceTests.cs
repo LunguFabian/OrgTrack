@@ -32,7 +32,8 @@ public class EventServiceTests
             _unitRepositoryMock.Object,
             _userRepositoryMock.Object,
             _activityLogService,
-            _googleCalendarServiceMock.Object
+            _googleCalendarServiceMock.Object,
+            new NotificationService(new Mock<INotificationRepository>().Object, new Mock<IRealtimeNotifier>().Object)
         );
     }
 
@@ -43,6 +44,8 @@ public class EventServiceTests
         var creatorId = Guid.NewGuid();
 
         _unitRepositoryMock.Setup(r => r.GetByIdAsync(unitId)).ReturnsAsync(new OrganizationUnit { Id = unitId });
+        _unitRepositoryMock.Setup(r => r.GetMembersForUnitsAsync(It.IsAny<IEnumerable<Guid>>())).ReturnsAsync(new List<UserUnitRole>());
+        _unitRepositoryMock.Setup(r => r.GetDescendantUnitIdsAsync(It.IsAny<Guid>())).ReturnsAsync(new HashSet<Guid>());
         _eventRepositoryMock.Setup(r => r.AddAsync(It.IsAny<Event>())).Returns(Task.CompletedTask);
 
         var result = await _eventService.CreateEventAsync(unitId, "Test Event", "Desc", DateTime.UtcNow, DateTime.UtcNow.AddHours(1), false, null, null, creatorId);
@@ -58,6 +61,8 @@ public class EventServiceTests
         var ev = new Event { Id = eventId, Title = "Old", OrganizationUnitId = Guid.NewGuid() };
 
         _eventRepositoryMock.Setup(r => r.GetByIdAsync(eventId)).ReturnsAsync(ev);
+        _unitRepositoryMock.Setup(r => r.GetMembersForUnitsAsync(It.IsAny<IEnumerable<Guid>>())).ReturnsAsync(new List<UserUnitRole>());
+        _unitRepositoryMock.Setup(r => r.GetDescendantUnitIdsAsync(It.IsAny<Guid>())).ReturnsAsync(new HashSet<Guid>());
         _eventRepositoryMock.Setup(r => r.UpdateAsync(ev)).Returns(Task.CompletedTask);
 
         var result = await _eventService.UpdateEventAsync(Guid.NewGuid(), eventId, "New", "Desc", DateTime.UtcNow, DateTime.UtcNow.AddHours(1), false, null, null);

@@ -26,6 +26,7 @@ export interface TaskDto {
   organizationUnitId: string;
   assigneeName?: string;
   assigneeId?: string;
+  assigneeProfilePictureUrl?: string;
   creatorName: string;
   createdAt: string;
   parentTaskId?: string;
