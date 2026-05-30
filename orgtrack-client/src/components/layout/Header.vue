@@ -2,10 +2,11 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useAuthStore } from '../../stores/authStore';
 import { useNotificationStore } from '../../stores/notificationStore';
+import { useChatStore } from '../../stores/chatStore';
 import { useRouter } from 'vue-router';
 import { organizationService } from '../../api/services/organization.service';
 import type { NotificationDto } from '../../api/services/notifications.service';
-import { LogOut, Bell, Search, Menu, User, Sun, Moon, Loader2 } from 'lucide-vue-next';
+import { LogOut, Bell, Search, Menu, User, Sun, Moon, Loader2, MessageSquare } from 'lucide-vue-next';
 import { useDark, useToggle } from '@vueuse/core';
 
 const isDark = useDark();
@@ -13,6 +14,7 @@ const toggleDark = useToggle(isDark);
 
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
+const chatStore = useChatStore();
 const router = useRouter();
 
 defineEmits(['toggle-sidebar']);
@@ -200,6 +202,13 @@ onUnmounted(() => {
       <button @click="toggleDark()" class="text-text-muted hover:text-text-strong transition-colors p-2 rounded-full hover:bg-surface-hover">
         <Sun v-if="!isDark" class="w-5 h-5" />
         <Moon v-else class="w-5 h-5" />
+      </button>
+
+      <button @click="chatStore.openDrawer()" class="text-text-muted hover:text-text-strong transition-colors relative p-2 rounded-full hover:bg-surface-hover">
+        <MessageSquare class="w-5 h-5" />
+        <span v-if="chatStore.unreadTotal > 0" class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center px-1 ring-2 ring-bg shadow-[0_0_10px_rgba(16,185,129,0.5)]">
+          {{ chatStore.unreadTotal > 99 ? '99+' : chatStore.unreadTotal }}
+        </span>
       </button>
 
       <div class="relative" ref="notificationDropdownRef">

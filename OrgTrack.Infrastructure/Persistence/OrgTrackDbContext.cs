@@ -21,10 +21,22 @@ public class OrgTrackDbContext : DbContext
     public DbSet<InviteLink> InviteLinks => Set<InviteLink>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Notification> Notifications => Set<Notification>();
-
+    public DbSet<Message> Messages => Set<Message>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Message>()
+            .HasOne(m => m.Sender)
+            .WithMany(u => u.SentMessages)
+            .HasForeignKey(m => m.SenderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Message>()
+            .HasOne(m => m.Receiver)
+            .WithMany(u => u.ReceivedMessages)
+            .HasForeignKey(m => m.ReceiverId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<EventInvitedUnit>()
             .HasKey(e => new { e.EventId, e.OrganizationUnitId });

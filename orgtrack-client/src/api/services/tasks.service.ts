@@ -1,9 +1,14 @@
 import { api } from '../axios';
-import type { TaskDto, CreateTaskRequest, UpdateTaskRequest } from '../../types/unit';
+import type { TaskDto, CreateTaskRequest, UpdateTaskRequest, WorkloadScoreDto } from '../../types/unit';
 
 export const tasksService = {
   async getTasksByUnit(unitId: string): Promise<TaskDto[]> {
     const res = await api.get<TaskDto[]>(`/organization/units/${unitId}/tasks`);
+    return res.data;
+  },
+
+  async getUnitWorkload(unitId: string): Promise<WorkloadScoreDto[]> {
+    const res = await api.get<WorkloadScoreDto[]>(`/organization/units/${unitId}/tasks/workload`);
     return res.data;
   },
 

@@ -1,3 +1,15 @@
+export interface WorkloadScoreDto {
+  userId: string;
+  userName: string;
+  pictureUrl?: string;
+  finalScore: number;
+  currentWorkloadRaw: number;
+  velocityDaysRaw: number;
+  affinityRaw: number;
+  daysSinceLastAssignmentRaw: number;
+  subtasksComplexityRaw: number;
+}
+
 export interface UnitMemberDto {
   userId: string;
   firstName: string;

@@ -6,7 +6,7 @@ import { organizationService } from '../../api/services/organization.service';
 import { signalrService } from '../../api/services/signalr.service';
 import { useToastStore } from '../../stores/toastStore';
 import { useAuthStore } from '../../stores/authStore';
-import type { TaskDto, UnitMemberDto } from '../../types/unit';
+import type { TaskDto, UnitMemberDto, WorkloadScoreDto } from '../../types/unit';
 import type { OrganizationUnitDto } from '../../types/organization';
 import KanbanCard from './KanbanCard.vue';
 
@@ -24,6 +24,9 @@ const props = withDefaults(defineProps<{
 
 const tasks = ref<TaskDto[]>([]);
 const myUnits = ref<OrganizationUnitDto[]>([]);
+const workloadScores = ref<WorkloadScoreDto[]>([]);
+const isLoadingWorkload = ref(false);
+
 const isLoading = ref(true);
 const error = ref('');
 const dragOverColumn = ref<string | null>(null);
@@ -67,7 +70,24 @@ onMounted(async () => {
   }
 
   // Attach real-time listeners
-  signalrService.on('TaskCreated', (task: TaskDto) => {
+  const mapTask = (raw: any): TaskDto => ({
+    id: raw.id || raw.Id,
+    title: raw.title || raw.Title,
+    description: raw.description || raw.Description,
+    status: raw.status || raw.Status,
+    priority: raw.priority || raw.Priority,
+    deadline: raw.deadline || raw.Deadline,
+    organizationUnitId: raw.organizationUnitId || raw.OrganizationUnitId,
+    assigneeName: raw.assigneeName || raw.AssigneeName,
+    assigneeId: raw.assigneeId || raw.AssigneeId,
+    assigneeProfilePictureUrl: raw.assigneeProfilePictureUrl || raw.AssigneeProfilePictureUrl,
+    creatorName: raw.creatorName || raw.CreatorName,
+    createdAt: raw.createdAt || raw.CreatedAt,
+    parentTaskId: raw.parentTaskId || raw.ParentTaskId
+  });
+
+  signalrService.on('TaskCreated', (rawTask: any) => {
+    const task = mapTask(rawTask);
     if (props.mode === 'unit' || (props.mode === 'me' && task.assigneeId === authStore.user?.id)) {
       if (!tasks.value.some(t => t.id === task.id)) {
         tasks.value.push(task);
@@ -75,7 +95,8 @@ onMounted(async () => {
     }
   });
 
-  signalrService.on('TaskUpdated', (task: TaskDto) => {
+  signalrService.on('TaskUpdated', (rawTask: any) => {
+    const task = mapTask(rawTask);
     const index = tasks.value.findIndex(t => t.id === task.id);
     if (index !== -1) {
       tasks.value[index] = task;
@@ -84,8 +105,9 @@ onMounted(async () => {
     }
   });
 
-  signalrService.on('TaskDeleted', (data: { id: string }) => {
-    tasks.value = tasks.value.filter(t => t.id !== data.id && t.parentTaskId !== data.id);
+  signalrService.on('TaskDeleted', (data: any) => {
+    const id = data.id || data.Id;
+    tasks.value = tasks.value.filter(t => t.id !== id && t.parentTaskId !== id);
   });
 });
 
@@ -156,6 +178,12 @@ const onDrop = async (event: DragEvent, newStatus: string) => {
   
   const task = tasks.value[taskIndex];
   if (task.status === newStatus) return; // Dropped in same column
+
+  if (!task.assigneeId && newStatus !== 'ToDo') {
+    toastStore.showToast('Unassigned tasks cannot be moved out of "To Do". Please assign someone first.', 'error');
+    return;
+  }
+  
   const oldStatus = task.status;
   task.status = newStatus as any;
   
@@ -200,7 +228,7 @@ const taskForm = ref({
 
 const minDateTime = ref('');
 
-const openCreateModal = (parentTaskId: string | null = null, defaultStatus: string = 'ToDo') => {
+const openCreateModal = async (parentTaskId: string | null = null, defaultStatus: string = 'ToDo') => {
   createError.value = '';
   isEditingTask.value = false;
   editingTaskId.value = null;
@@ -219,9 +247,13 @@ const openCreateModal = (parentTaskId: string | null = null, defaultStatus: stri
     status: defaultStatus
   };
   isTaskModalOpen.value = true;
+  
+  if (props.mode === 'unit' && props.unitId) {
+    await fetchWorkload(props.unitId);
+  }
 };
 
-const openEditModal = (task: TaskDto) => {
+const openEditModal = async (task: TaskDto) => {
   createError.value = '';
   isEditingTask.value = true;
   editingTaskId.value = task.id;
@@ -240,9 +272,57 @@ const openEditModal = (task: TaskDto) => {
     status: task.status
   };
   isTaskModalOpen.value = true;
+  
+  if (props.mode === 'unit') {
+    await fetchWorkload(task.organizationUnitId);
+  }
+};
+
+const fetchWorkload = async (unitId: string) => {
+  isLoadingWorkload.value = true;
+  try {
+    workloadScores.value = await tasksService.getUnitWorkload(unitId);
+  } catch (err) {
+    console.error('Failed to fetch workload', err);
+  } finally {
+    isLoadingWorkload.value = false;
+  }
+};
+
+const sortedMembers = computed(() => {
+  if (workloadScores.value.length === 0) return props.members;
+  
+  // Sort members so that the order matches the workloadScores order
+  const sorted = [...(props.members || [])].sort((a, b) => {
+    const scoreA = workloadScores.value.findIndex(ws => ws.userId === a.userId);
+    const scoreB = workloadScores.value.findIndex(ws => ws.userId === b.userId);
+    // If not found in scores, put at the end
+    const idxA = scoreA === -1 ? 999 : scoreA;
+    const idxB = scoreB === -1 ? 999 : scoreB;
+    return idxA - idxB;
+  });
+  return sorted;
+});
+
+const isRecommended = (userId: string) => {
+  if (workloadScores.value.length === 0) return false;
+  const minScore = workloadScores.value[0]?.finalScore;
+  const userScore = workloadScores.value.find(w => w.userId === userId)?.finalScore;
+  return userScore === minScore;
+};
+
+const getWorkloadTooltip = (userId: string) => {
+  const ws = workloadScores.value.find(w => w.userId === userId);
+  if (!ws) return '';
+  return `Load: ${ws.currentWorkloadRaw} | Velocity: ${ws.velocityDaysRaw.toFixed(1)}d | Affinity: ${ws.affinityRaw} | Idle: ${ws.daysSinceLastAssignmentRaw}d | Subtasks: ${ws.subtasksComplexityRaw}`;
 };
 
 const handleSubtaskStatusChange = async (subTask: TaskDto, newStatus: string) => {
+  if (!subTask.assigneeId && newStatus !== 'ToDo') {
+    toastStore.showToast('Unassigned sub-tasks cannot be moved out of "To Do".', 'error');
+    return;
+  }
+
   try {
     const updated = await tasksService.updateTaskStatus(subTask.organizationUnitId, subTask.id, newStatus);
     const index = tasks.value.findIndex(t => t.id === subTask.id);
@@ -270,6 +350,11 @@ const submitTask = async () => {
       return;
     }
   }
+
+  if (taskForm.value.status !== 'ToDo' && !taskForm.value.assigneeId) {
+    createError.value = 'Tasks outside "To Do" must have an assignee.';
+    return;
+  }
   
   createError.value = '';
   isCreating.value = true;
@@ -293,7 +378,10 @@ const submitTask = async () => {
     } else {
       const unitToCreateIn = props.mode === 'me' ? taskForm.value.targetUnitId : props.unitId!;
       const newTask = await tasksService.createTask(unitToCreateIn, payload);
-      tasks.value.push(newTask);
+      // Avoid duplication if SignalR already pushed it
+      if (!tasks.value.some(t => t.id === newTask.id)) {
+        tasks.value.push(newTask);
+      }
       toastStore.showToast('Task created successfully.', 'success');
     }
     
@@ -436,15 +524,28 @@ const submitTask = async () => {
             </div>
             
             <div>
-              <label class="block text-xs font-medium text-text-muted mb-1.5">Assignee (Optional)</label>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-xs font-medium text-text-muted">Assignee (Optional)</label>
+                <span v-if="isLoadingWorkload" class="text-[10px] text-emerald-400 flex items-center gap-1">
+                  <Loader2 class="w-3 h-3 animate-spin" /> Analyzing workload...
+                </span>
+              </div>
               <select v-model="taskForm.assigneeId" :disabled="props.mode === 'me'" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
                 <option value="">Unassigned</option>
-                <option v-for="member in props.members" :key="member.userId" :value="member.userId">
-                  {{ member.firstName }} {{ member.lastName }} ({{ member.roleName }})
+                <option 
+                  v-for="member in sortedMembers" 
+                  :key="member.userId" 
+                  :value="member.userId"
+                  :title="getWorkloadTooltip(member.userId)"
+                >
+                  {{ isRecommended(member.userId) ? '⭐ ' : '' }}{{ member.firstName }} {{ member.lastName }}
                 </option>
                 <option v-if="props.mode === 'me'" :value="authStore.user?.id">Me ({{ authStore.user?.firstName }})</option>
               </select>
               <p v-if="props.mode === 'me'" class="text-[10px] text-text-muted mt-1">In "My Tasks" mode, tasks are automatically assigned to you.</p>
+              <p v-else-if="workloadScores.length > 0" class="text-[10px] text-text-muted mt-1">
+                ⭐ means the user is recommended
+              </p>
             </div>
             
             <!-- Unit selection only in 'me' mode -->

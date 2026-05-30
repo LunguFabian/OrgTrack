@@ -6,6 +6,7 @@ using OrgTrack.Application.Interfaces;
 using OrgTrack.Application.UseCases;
 using OrgTrack.Infrastructure.Auth;
 using OrgTrack.Infrastructure.Persistence;
+using OrgTrack.Infrastructure.Repositories;
 using OrgTrack.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -84,6 +85,8 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IGoogleCalendarService, OrgTrack.Infrastructure.ExternalServices.GoogleCalendarService>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<IMessageRepository, MessageRepository>();
+builder.Services.AddScoped<MessageService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IRealtimeNotifier, OrgTrack.Api.Hubs.SignalRNotifier>();
 builder.Services.AddControllers().AddJsonOptions(options =>

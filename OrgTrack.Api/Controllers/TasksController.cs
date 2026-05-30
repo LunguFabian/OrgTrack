@@ -46,6 +46,24 @@ public class TasksController(
         return Ok(tasks);
     }
 
+    [HttpGet("workload")]
+    public async Task<IActionResult> GetWorkload(Guid unitId)
+    {
+        var userId = User.GetUserId();
+        
+        bool hasManagePermission = await permissionService.HasPermissionAsync(userId, unitId, Permissions.TasksManage);
+        bool hasViewPermission   = await permissionService.HasPermissionAsync(userId, unitId, Permissions.TasksView);
+        bool isDirectMember = await permissionService.IsDirectMemberAsync(userId, unitId);
+        
+        if (!hasManagePermission && !hasViewPermission && !isDirectMember)
+        {
+            return Forbid();
+        }
+
+        var workload = await taskService.GetWorkloadRecommendationAsync(unitId);
+        return Ok(workload);
+    }
+
     [HttpPost]
     public async Task<IActionResult> CreateTask(Guid unitId, [FromBody] CreateTaskRequest request)
     {

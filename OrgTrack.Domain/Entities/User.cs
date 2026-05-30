@@ -15,4 +15,7 @@ public class User : BaseEntity
     
     public ICollection<TaskItem> AssignedTasks { get; set; } = new List<TaskItem>();
     public ICollection<EventRsvp> EventRsvps { get; set; } = new List<EventRsvp>();
+
+    public ICollection<Message> SentMessages { get; set; } = new List<Message>();
+    public ICollection<Message> ReceivedMessages { get; set; } = new List<Message>();
 }

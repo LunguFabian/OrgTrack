@@ -2,13 +2,16 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useOrgStore } from '../../stores/orgStore';
 import { useNotificationStore } from '../../stores/notificationStore';
+import { useChatStore } from '../../stores/chatStore';
 import { signalrService } from '../../api/services/signalr.service';
 import Sidebar from './Sidebar.vue';
 import Header from './Header.vue';
+import ChatDrawer from '../chat/ChatDrawer.vue';
 
 const isSidebarOpen = ref(false);
 const orgStore = useOrgStore();
 const notificationStore = useNotificationStore();
+const chatStore = useChatStore();
 
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value;
@@ -26,6 +29,9 @@ onMounted(async () => {
   await signalrService.start();
   notificationStore.initRealtimeListeners();
   notificationStore.fetchNotifications();
+  chatStore.initRealtimeListeners();
+  chatStore.fetchUnreadCount();
+  chatStore.fetchConversations();
 });
 
 onUnmounted(() => {
@@ -58,6 +64,9 @@ onUnmounted(() => {
         </router-view>
       </main>
     </div>
+
+    <!-- Chat Drawer (Global) -->
+    <ChatDrawer />
   </div>
 </template>
 

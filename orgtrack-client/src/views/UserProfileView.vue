@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
+import { useChatStore } from '../stores/chatStore';
 import { organizationService } from '../api/services/organization.service';
 import { analyticsService, type MemberActivityScoreDto } from '../api/services/analytics.service';
 import { Mail, Shield, Building2, Loader2, ArrowLeft, Activity, CheckSquare, CalendarCheck, MessageSquare, Globe, Layers } from 'lucide-vue-next';
@@ -9,6 +10,7 @@ import { Mail, Shield, Building2, Loader2, ArrowLeft, Activity, CheckSquare, Cal
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const chatStore = useChatStore();
 
 const userId = computed(() => route.params.userId as string);
 const isOwnProfile = computed(() => userId.value === authStore.user?.id);
@@ -109,16 +111,14 @@ onMounted(async () => {
             {{ profile.email }}
           </div>
 
-          <!-- Send Message Button (disabled for now) -->
+          <!-- Send Message Button -->
           <div v-if="!isOwnProfile" class="mt-5">
             <button 
-              disabled
-              class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-emerald-600/30 text-emerald-400/50 cursor-not-allowed border border-emerald-500/10"
-              title="Messaging is coming soon!"
+              @click="chatStore.openDrawer(profile.id)"
+              class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-lg shadow-emerald-500/20"
             >
               <MessageSquare class="w-4 h-4" />
               Send Message
-              <span class="text-[10px] uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded-md ml-1">Soon</span>
             </button>
           </div>
 
