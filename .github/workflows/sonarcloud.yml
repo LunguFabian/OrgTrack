@@ -44,6 +44,10 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install frontend dependencies
+        working-directory: ./orgtrack-client
+        run: npm install
+
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
