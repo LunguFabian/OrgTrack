@@ -13,7 +13,7 @@ export const useToastStore = defineStore('toast', () => {
   const toasts = ref<Toast[]>([]);
 
   const showToast = (message: string, type: ToastType = 'info', duration = 3000) => {
-    const id = Math.random().toString(36).substring(2, 9);
+    const id = crypto.randomUUID();
     toasts.value.push({ id, message, type });
     setTimeout(() => {
       removeToast(id);
