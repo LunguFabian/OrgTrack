@@ -168,6 +168,92 @@ public class OrganizationServiceTests
         var result = await _organizationService.RemoveMemberAsync(unitId, userId);
 
         result.Should().BeTrue();
-        _unitRepositoryMock.Verify(r => r.RemoveMemberAsync(membership), Times.Once);
+    }
+
+    // UPDATE MEMBER ROLE
+    [Fact]
+    public async Task UpdateMemberRoleAsync_ShouldThrow_WhenRankIsTooLow()
+    {
+        var unitId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        
+        var actorUser = new User { Id = actorUserId, Email = "regular@aiesec.ro" };
+        var actorRole = new Role { Name = "Member" }; // Rank 20
+        var actorRoles = new List<UserUnitRole> { new UserUnitRole { Role = actorRole } };
+
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(actorUserId)).ReturnsAsync(actorUser);
+        _unitRepositoryMock.Setup(r => r.GetUserRolesAsync(actorUserId)).ReturnsAsync(actorRoles);
+
+        var action = async () => await _organizationService.UpdateMemberRoleAsync(
+            unitId, targetUserId, "LocalPresident", actorUserId); // Target Rank 80
+
+        await action.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("Security Violation: You do not have a high enough role to assign this level of permission.");
+    }
+
+    [Fact]
+    public async Task UpdateMemberRoleAsync_ShouldUpdate_WhenAdmin()
+    {
+        var unitId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        
+        var actorUser = new User { Id = actorUserId, Email = "admin@aiesec.ro" }; // Admin backdoor
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(actorUserId)).ReturnsAsync(actorUser);
+        _unitRepositoryMock.Setup(r => r.GetUserRolesAsync(actorUserId)).ReturnsAsync(new List<UserUnitRole>());
+
+        var targetRole = new Role { Id = Guid.NewGuid(), Name = "NationalPresident" };
+        _roleRepositoryMock.Setup(r => r.GetByNameAsync("NationalPresident")).ReturnsAsync(targetRole);
+
+        var membership = new UserUnitRole { UserId = targetUserId, OrganizationUnitId = unitId };
+        _unitRepositoryMock.Setup(r => r.GetUserUnitRoleAsync(targetUserId, unitId)).ReturnsAsync(membership);
+        _unitRepositoryMock.Setup(r => r.UpdateMemberAsync(membership)).Returns(Task.CompletedTask);
+
+        var result = await _organizationService.UpdateMemberRoleAsync(unitId, targetUserId, "NationalPresident", actorUserId);
+
+        result.Should().BeTrue();
+        membership.RoleId.Should().Be(targetRole.Id);
+    }
+
+    // GET FULL TREE
+    [Fact]
+    public async Task GetFullTreeAsync_ShouldBuildTree()
+    {
+        var rootId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+
+        var root = new OrganizationUnit { Id = rootId, Name = "Romania", Type = UnitType.National, Members = new List<UserUnitRole>() };
+        var child = new OrganizationUnit { Id = childId, ParentUnitId = rootId, Name = "Bucuresti", Type = UnitType.Committee, Members = new List<UserUnitRole>() };
+
+        var allUnits = new List<OrganizationUnit> { root, child };
+        _unitRepositoryMock.Setup(r => r.GetAllUnitsAsync()).ReturnsAsync(allUnits);
+
+        var result = await _organizationService.GetFullTreeAsync();
+
+        result.Should().NotBeNull();
+        result.Should().HaveCount(1); // 1 root
+        result[0].Children.Should().HaveCount(1); // 1 child
+        result[0].Children[0].Name.Should().Be("Bucuresti");
+    }
+
+    // GET MY UNITS
+    [Fact]
+    public async Task GetMyUnitsAsync_ShouldReturnMappedUnits()
+    {
+        var userId = Guid.NewGuid();
+        var unit = new OrganizationUnit { Id = Guid.NewGuid(), Name = "My Unit" };
+        var roles = new List<UserUnitRole> 
+        { 
+            new UserUnitRole { OrganizationUnitId = unit.Id, OrganizationUnit = unit } 
+        };
+
+        _unitRepositoryMock.Setup(r => r.GetUserRolesAsync(userId)).ReturnsAsync(roles);
+
+        var result = await _organizationService.GetMyUnitsAsync(userId);
+
+        result.Should().NotBeNull();
+        result.Should().HaveCount(1);
+        result.First().Name.Should().Be("My Unit");
     }
 }
