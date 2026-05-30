@@ -24,13 +24,15 @@ public class OrganizationController(
     public async Task<IActionResult> CreateUnit([FromBody] CreateUnitRequest request)
     {
         var userId = User.GetUserId();
-        if (request.ParentUnitId.HasValue)
+        if (request.ParentUnitId.HasValue && 
+            !await permissionService.HasPermissionAsync(
+                userId, 
+                request.ParentUnitId.Value,
+                Permissions.UnitsManage))
         {
-            if (!await permissionService.HasPermissionAsync(userId, request.ParentUnitId.Value, Permissions.UnitsManage))
-            {
-                return Forbid();
-            }
+            return Forbid();
         }
+        
         try
         {
             var unit = await organizationService.CreateUnitAsync(

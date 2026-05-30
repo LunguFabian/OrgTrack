@@ -43,12 +43,16 @@ public class MessagesController : ControllerBase
     public async Task<ActionResult<MessageDto>> SendMessage([FromBody] SendMessageRequest request)
     {
         var currentUserId = GetUserId();
+        if (request.ReceiverId == null)
+        {
+            return BadRequest(new { error = "ReceiverId is required." });
+        }
         if (string.IsNullOrWhiteSpace(request.Content))
         {
             return BadRequest(new { error = "Message content cannot be empty." });
         }
 
-        var messageDto = await _messageService.SendMessageAsync(currentUserId, request.ReceiverId, request.Content);
+        var messageDto = await _messageService.SendMessageAsync(currentUserId, request.ReceiverId.Value, request.Content);
         return Ok(messageDto);
     }
 
@@ -69,4 +73,4 @@ public class MessagesController : ControllerBase
     }
 }
 
-public record SendMessageRequest(Guid ReceiverId, string Content);
+public record SendMessageRequest(Guid? ReceiverId, string Content);

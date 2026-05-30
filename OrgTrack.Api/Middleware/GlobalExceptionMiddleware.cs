@@ -26,6 +26,11 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
         }
     }
 
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private static async Task WriteErrorResponseAsync(HttpContext context, Exception ex)
     {
         var statusCode = ex switch
@@ -49,10 +54,7 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
             timestamp = DateTime.UtcNow
         };
 
-        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+        var json = JsonSerializer.Serialize(response, _jsonOptions);
 
         await context.Response.WriteAsync(json);
     }
