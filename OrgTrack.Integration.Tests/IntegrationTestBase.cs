@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using OrgTrack.Infrastructure.Persistence;
 using Xunit;
 
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
+
 namespace OrgTrack.Integration.Tests;
 
 public abstract class IntegrationTestBase : IClassFixture<CustomWebApplicationFactory>
@@ -16,6 +18,12 @@ public abstract class IntegrationTestBase : IClassFixture<CustomWebApplicationFa
         {
             AllowAutoRedirect = false
         });
+
+        // Clear database before each test
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<OrgTrackDbContext>();
+        dbContext.Database.EnsureDeleted();
+        dbContext.Database.EnsureCreated();
     }
 
     /// <summary>

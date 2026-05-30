@@ -107,4 +107,99 @@ public class EventsControllerTests : IntegrationTestBase
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
+
+    [Fact]
+    public async Task UpdateEvent_ShouldReturnOk_WhenUserHasManagePermission()
+    {
+        // Arrange
+        Guid unitId = Guid.Empty;
+        var _testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        Guid eventId = Guid.Empty;
+        await ExecuteInDbAsync(async db =>
+        {
+            var unit = new OrganizationUnit { Name = "Test Unit", Type = UnitType.Committee };
+            db.OrganizationUnits.Add(unit);
+            var role = new Role { Name = "Leader", Permissions = "[\"Events.Manage\"]" };
+            db.Roles.Add(role);
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            
+            var ev = new Event { Title = "Test Event", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddHours(1), OrganizationUnitId = unit.Id };
+            db.Events.Add(ev);
+            
+            await db.SaveChangesAsync();
+            unitId = unit.Id;
+            eventId = ev.Id;
+        });
+
+        var updateEventReq = new UpdateEventRequest(
+            "New Title", "Description", DateTime.UtcNow.AddDays(1),
+            DateTime.UtcNow.AddDays(1).AddHours(2), false, null, null, new List<Guid>(), new List<Guid>()
+        );
+
+        // Act
+        var response = await Client.PutAsJsonAsync($"/api/organization/units/{unitId}/events/{eventId}", updateEventReq);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task DeleteEvent_ShouldReturnNoContent_WhenUserHasManagePermission()
+    {
+        // Arrange
+        Guid unitId = Guid.Empty;
+        var _testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        Guid eventId = Guid.Empty;
+        await ExecuteInDbAsync(async db =>
+        {
+            var unit = new OrganizationUnit { Name = "Test Unit", Type = UnitType.Committee };
+            db.OrganizationUnits.Add(unit);
+            var role = new Role { Name = "Leader", Permissions = "[\"Events.Manage\"]" };
+            db.Roles.Add(role);
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            
+            var ev = new Event { Title = "Test Event", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddHours(1), OrganizationUnitId = unit.Id };
+            db.Events.Add(ev);
+            
+            await db.SaveChangesAsync();
+            unitId = unit.Id;
+            eventId = ev.Id;
+        });
+
+        // Act
+        var response = await Client.DeleteAsync($"/api/organization/units/{unitId}/events/{eventId}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task GetAttendance_ShouldReturnOk_WhenUserHasManagePermission()
+    {
+        // Arrange
+        Guid unitId = Guid.Empty;
+        var _testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        Guid eventId = Guid.Empty;
+        await ExecuteInDbAsync(async db =>
+        {
+            var unit = new OrganizationUnit { Name = "Test Unit", Type = UnitType.Committee };
+            db.OrganizationUnits.Add(unit);
+            var role = new Role { Name = "Leader", Permissions = "[\"Events.Manage\"]" };
+            db.Roles.Add(role);
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            
+            var ev = new Event { Title = "Test Event", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddHours(1), OrganizationUnitId = unit.Id };
+            db.Events.Add(ev);
+            
+            await db.SaveChangesAsync();
+            unitId = unit.Id;
+            eventId = ev.Id;
+        });
+
+        // Act
+        var response = await Client.GetAsync($"/api/organization/units/{unitId}/events/{eventId}/attendance");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 }

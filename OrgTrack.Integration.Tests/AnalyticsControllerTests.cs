@@ -16,7 +16,7 @@ public class AnalyticsControllerTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task GetTaskCompletionRate_ShouldReturnRate_WhenTasksExist()
+    public async Task GetMemberScore_ShouldReturnScore_WhenUserHasAccess()
     {
         AuthenticateAs(_testUserId);
         
@@ -26,8 +26,11 @@ public class AnalyticsControllerTests : IntegrationTestBase
             var unit = new OrganizationUnit { Name = "Local Committee", Description = "Desc", Type = UnitType.Committee };
             db.OrganizationUnits.Add(unit);
             
-            var role = new Role { Name = "Leader", Permissions = "[\"Analytics.View\"]" };
+            var role = new Role { Name = "Leader", Permissions = "[\"Members.View\"]" };
             db.Roles.Add(role);
+
+            if (!db.Users.Any(u => u.Id == _testUserId)) 
+                db.Users.Add(new User { Id = _testUserId, FirstName = "Test", LastName = "User", Email = "test@test.com" });
 
             db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
             await db.SaveChangesAsync();
@@ -45,23 +48,62 @@ public class AnalyticsControllerTests : IntegrationTestBase
             };
             db.Tasks.Add(task1);
 
-            var task2 = new TaskItem 
-            { 
-                Title = "Task 2", 
-                Description = "Desc", 
-                Priority = TaskPriority.Medium, 
-                OrganizationUnitId = unitId, 
-                AssigneeId = _testUserId, 
-                CreatorId = _testUserId,
-                Status = OrgTrack.Domain.Enums.TaskStatus.ToDo
-            };
-            db.Tasks.Add(task2);
-
             await db.SaveChangesAsync();
         });
 
-        var response = await Client.GetAsync($"/api/organization/units/{unitId}/analytics/task-completion-rate");
-        // Because AnalyticsController might be under a different path, we just assert it doesn't crash 500
-        response.StatusCode.Should().NotBe(HttpStatusCode.InternalServerError);
+        var response = await Client.GetAsync($"/api/analytics/members/{_testUserId}");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetUnitSummary_ShouldReturnSummary_WhenUserHasAccess()
+    {
+        AuthenticateAs(_testUserId);
+        
+        Guid unitId = Guid.Empty;
+        await ExecuteInDbAsync(async db =>
+        {
+            var unit = new OrganizationUnit { Name = "Local Committee", Description = "Desc", Type = UnitType.Committee };
+            db.OrganizationUnits.Add(unit);
+            
+            var role = new Role { Name = "Leader", Permissions = "[\"Units.View\"]" };
+            db.Roles.Add(role);
+
+            if (!db.Users.Any(u => u.Id == _testUserId)) 
+                db.Users.Add(new User { Id = _testUserId, FirstName = "Test", LastName = "User", Email = "test@test.com" });
+
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            await db.SaveChangesAsync();
+            unitId = unit.Id;
+        });
+
+        var response = await Client.GetAsync($"/api/analytics/units/{unitId}");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetNationalDashboard_ShouldReturnDashboards_WhenUserHasAccess()
+    {
+        AuthenticateAs(_testUserId);
+        
+        Guid unitId = Guid.Empty;
+        await ExecuteInDbAsync(async db =>
+        {
+            var unit = new OrganizationUnit { Name = "National", Description = "Desc", Type = UnitType.National };
+            db.OrganizationUnits.Add(unit);
+            
+            var role = new Role { Name = "President", Permissions = "[\"Units.Manage\"]" };
+            db.Roles.Add(role);
+
+            if (!db.Users.Any(u => u.Id == _testUserId)) 
+                db.Users.Add(new User { Id = _testUserId, FirstName = "Test", LastName = "User", Email = "test@test.com" });
+
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            await db.SaveChangesAsync();
+            unitId = unit.Id;
+        });
+
+        var response = await Client.GetAsync($"/api/analytics/national/{unitId}");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }
