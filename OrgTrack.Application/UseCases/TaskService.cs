@@ -142,33 +142,16 @@ public class TaskService(
         var task = await taskRepository.GetByIdAsync(taskId);
         if (task == null) throw new ArgumentException("Task not found.");
 
-        if (task.Status == TaskStatus.Done)
-        {
-            throw new InvalidOperationException("Tasks marked as 'Done' cannot be edited.");
-        }
-
-        if (!hasManagePermission && task.CreatorId != requestingUserId)
-        {
-            throw new InvalidOperationException("You can only edit tasks created by you.");
-        }
+        ValidateTaskForUpdate(task, requestingUserId, hasManagePermission);
 
         if (assigneeId.HasValue && assigneeId != task.AssigneeId)
         {
-            var membership = await unitRepository.GetUserUnitRoleAsync(assigneeId.Value, task.OrganizationUnitId);
-            if (membership == null)
-                throw new ArgumentException("Assignee must be a member of this organization unit.");
+            await ValidateAssigneeMembershipAsync(assigneeId.Value, task.OrganizationUnitId);
         }
 
         if (parentTaskId.HasValue && parentTaskId != task.ParentTaskId)
         {
-            if (parentTaskId == taskId)
-                throw new ArgumentException("Task cannot be its own parent.");
-                
-            var parentTask = await taskRepository.GetByIdAsync(parentTaskId.Value);
-            if (parentTask == null)
-                throw new ArgumentException("Parent task not found.");
-            if (parentTask.OrganizationUnitId != task.OrganizationUnitId)
-                throw new ArgumentException("Parent task must belong to the same organization unit.");
+            await ValidateParentTaskAsync(parentTaskId.Value, taskId, task.OrganizationUnitId);
         }
 
         var oldAssigneeId = task.AssigneeId;
@@ -189,14 +172,50 @@ public class TaskService(
         await realtimeNotifier.SendToGroupAsync($"Unit_{task.OrganizationUnitId}", "TaskUpdated", dto);
 
         // Notifications
-        if (oldAssigneeId != assigneeId)
+        await HandleTaskUpdateNotificationsAsync(task, oldAssigneeId, requestingUserId);
+
+        return dto;
+    }
+
+    private void ValidateTaskForUpdate(TaskItem task, Guid requestingUserId, bool hasManagePermission)
+    {
+        if (task.Status == TaskStatus.Done)
+            throw new InvalidOperationException("Tasks marked as 'Done' cannot be edited.");
+
+        if (!hasManagePermission && task.CreatorId != requestingUserId)
+            throw new InvalidOperationException("You can only edit tasks created by you.");
+    }
+
+    private async Task ValidateAssigneeMembershipAsync(Guid assigneeId, Guid unitId)
+    {
+        var membership = await unitRepository.GetUserUnitRoleAsync(assigneeId, unitId);
+        if (membership == null)
+            throw new ArgumentException("Assignee must be a member of this organization unit.");
+    }
+
+    private async Task ValidateParentTaskAsync(Guid parentTaskId, Guid currentTaskId, Guid unitId)
+    {
+        if (parentTaskId == currentTaskId)
+            throw new ArgumentException("Task cannot be its own parent.");
+            
+        var parentTask = await taskRepository.GetByIdAsync(parentTaskId);
+        if (parentTask == null)
+            throw new ArgumentException("Parent task not found.");
+            
+        if (parentTask.OrganizationUnitId != unitId)
+            throw new ArgumentException("Parent task must belong to the same organization unit.");
+    }
+
+    private async Task HandleTaskUpdateNotificationsAsync(TaskItem task, Guid? oldAssigneeId, Guid requestingUserId)
+    {
+        if (oldAssigneeId != task.AssigneeId)
         {
             // Notify new assignee
-            if (assigneeId.HasValue && assigneeId.Value != requestingUserId)
+            if (task.AssigneeId.HasValue && task.AssigneeId.Value != requestingUserId)
             {
                 await notificationService.CreateAndSendAsync(
-                    assigneeId.Value, "TaskAssigned", "Task Reassigned",
-                    $"You have been assigned to \"{title}\"",
+                    task.AssigneeId.Value, "TaskAssigned", "Task Reassigned",
+                    $"You have been assigned to \"{task.Title}\"",
                     task.Id, "Task", requestingUserId);
             }
             // Notify old assignee
@@ -204,20 +223,18 @@ public class TaskService(
             {
                 await notificationService.CreateAndSendAsync(
                     oldAssigneeId.Value, "TaskUnassigned", "Task Unassigned",
-                    $"You are no longer assigned to \"{title}\"",
+                    $"You are no longer assigned to \"{task.Title}\"",
                     task.Id, "Task", requestingUserId);
             }
         }
-        else if (assigneeId.HasValue && assigneeId.Value != requestingUserId)
+        else if (task.AssigneeId.HasValue && task.AssigneeId.Value != requestingUserId)
         {
             // Assignee stayed the same, just notify them of the edit
             await notificationService.CreateAndSendAsync(
-                assigneeId.Value, "TaskUpdated", "Task Updated",
-                $"The task \"{title}\" has been modified.",
+                task.AssigneeId.Value, "TaskUpdated", "Task Updated",
+                $"The task \"{task.Title}\" has been modified.",
                 task.Id, "Task", requestingUserId);
         }
-
-        return dto;
     }
 
     public async Task DeleteTaskAsync(Guid taskId, Guid requestingUserId, bool hasManagePermission)
@@ -347,7 +364,7 @@ public class TaskService(
 
         for (int i = 0; i < dtos.Count; i++)
         {
-            if (dtos[i].VelocityDaysRaw == -1)
+            if (Math.Abs(dtos[i].VelocityDaysRaw - (-1)) < 0.001)
             {
                 dtos[i] = dtos[i] with { VelocityDaysRaw = teamAverageVelocity };
             }
@@ -356,7 +373,7 @@ public class TaskService(
         // Min-Max Normalization Helper
         double Normalize(double value, double min, double max)
         {
-            if (max == min) return 0; // Avoid division by zero, everyone is equal
+            if (Math.Abs(max - min) < 0.001) return 0; // Avoid division by zero, everyone is equal
             return (value - min) / (max - min);
         }
 
