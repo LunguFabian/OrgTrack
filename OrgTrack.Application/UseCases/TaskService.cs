@@ -281,75 +281,35 @@ public class TaskService(
         var allTasks = await taskRepository.GetByUnitIdAsync(unitId);
         var tasksList = allTasks.ToList();
 
+        var dtos = CalculateRawScores(members, tasksList);
+        
+        FillMissingVelocityWithAverage(dtos);
+
+        ApplyNormalizationAndScoring(dtos);
+
+        return dtos.OrderBy(d => d.FinalScore).ToList();
+    }
+
+    private static List<WorkloadScoreDto> CalculateRawScores(IEnumerable<UserUnitRole> members, List<TaskItem> tasksList)
+    {
         var dtos = new List<WorkloadScoreDto>();
         var now = DateTime.UtcNow;
         var thirtyDaysAgo = now.AddDays(-30);
 
-        // Calculate raw values for each member
         foreach (var member in members)
         {
             var userTasks = tasksList.Where(t => t.AssigneeId == member.UserId).ToList();
 
-            // 1. Current Workload (W)
-            double currentWorkloadRaw = 0;
-            var activeTasks = userTasks.Where(t => t.Status == TaskStatus.ToDo || t.Status == TaskStatus.InProgress).ToList();
-            
-            int subtasksComplexityRaw = 0;
-
-            foreach (var task in activeTasks)
-            {
-                int priorityPoints = task.Priority switch
-                {
-                    TaskPriority.Low => 1,
-                    TaskPriority.Medium => 2,
-                    TaskPriority.High => 3,
-                    TaskPriority.Critical => 5,
-                    _ => 2
-                };
-
-                double statusFactor = task.Status == TaskStatus.InProgress ? 1.0 : 0.5;
-                double deadlinePenalty = (task.Deadline.HasValue && (task.Deadline.Value - now).TotalDays <= 3) ? 2.0 : 0;
-
-                currentWorkloadRaw += (priorityPoints * statusFactor) + deadlinePenalty;
-                
-                // 5. Subtasks Complexity (S)
-                // We count 1 (for the task itself) + number of subtasks
-                subtasksComplexityRaw += 1 + task.SubTasks.Count;
-            }
-
-            // 2. Velocity (V) - average days to complete tasks in the last 30 days
-            var completedTasks = userTasks.Where(t => t.Status == TaskStatus.Done && t.UpdatedAt >= thirtyDaysAgo).ToList();
-            double velocityDaysRaw = 0;
-            if (completedTasks.Any())
-            {
-                velocityDaysRaw = completedTasks.Average(t => (t.UpdatedAt!.Value - t.CreatedAt).TotalDays);
-            }
-            else
-            {
-                // If no completed tasks, we will assign team average later
-                velocityDaysRaw = -1; 
-            }
-
-            // 3. Affinity (A)
-            int affinityRaw = completedTasks.Count;
-
-            // 4. Fairness / Idle Time (F)
-            int daysSinceLastAssignmentRaw = 0;
-            var lastTask = userTasks.OrderByDescending(t => t.CreatedAt).FirstOrDefault();
-            if (lastTask != null)
-            {
-                daysSinceLastAssignmentRaw = (int)(now - lastTask.CreatedAt).TotalDays;
-            }
-            else
-            {
-                daysSinceLastAssignmentRaw = 30; // Max out idle time if no tasks ever
-            }
+            double currentWorkloadRaw = CalculateCurrentWorkload(userTasks, now, out int subtasksComplexityRaw);
+            double velocityDaysRaw = CalculateVelocity(userTasks, thirtyDaysAgo);
+            int affinityRaw = userTasks.Count(t => t.Status == TaskStatus.Done && t.UpdatedAt >= thirtyDaysAgo);
+            int daysSinceLastAssignmentRaw = CalculateIdleTime(userTasks, now);
 
             dtos.Add(new WorkloadScoreDto(
                 member.UserId,
                 $"{member.User?.FirstName} {member.User?.LastName}".Trim(),
                 member.User?.PictureUrl,
-                0, // Final score calculated after normalization
+                0, // Final score calculated later
                 currentWorkloadRaw,
                 velocityDaysRaw,
                 affinityRaw,
@@ -357,10 +317,60 @@ public class TaskService(
                 subtasksComplexityRaw
             ));
         }
+        return dtos;
+    }
 
-        // Fill missing velocity with team average
+    private static double CalculateCurrentWorkload(List<TaskItem> userTasks, DateTime now, out int subtasksComplexityRaw)
+    {
+        double currentWorkloadRaw = 0;
+        subtasksComplexityRaw = 0;
+        var activeTasks = userTasks.Where(t => t.Status == TaskStatus.ToDo || t.Status == TaskStatus.InProgress).ToList();
+
+        foreach (var task in activeTasks)
+        {
+            int priorityPoints = task.Priority switch
+            {
+                TaskPriority.Low => 1,
+                TaskPriority.Medium => 2,
+                TaskPriority.High => 3,
+                TaskPriority.Critical => 5,
+                _ => 2
+            };
+
+            double statusFactor = task.Status == TaskStatus.InProgress ? 1.0 : 0.5;
+            double deadlinePenalty = (task.Deadline.HasValue && (task.Deadline.Value - now).TotalDays <= 3) ? 2.0 : 0;
+
+            currentWorkloadRaw += (priorityPoints * statusFactor) + deadlinePenalty;
+            subtasksComplexityRaw += 1 + task.SubTasks.Count;
+        }
+
+        return currentWorkloadRaw;
+    }
+
+    private static double CalculateVelocity(List<TaskItem> userTasks, DateTime thirtyDaysAgo)
+    {
+        var completedTasks = userTasks.Where(t => t.Status == TaskStatus.Done && t.UpdatedAt >= thirtyDaysAgo).ToList();
+        if (completedTasks.Any())
+        {
+            return completedTasks.Average(t => (t.UpdatedAt!.Value - t.CreatedAt).TotalDays);
+        }
+        return -1; // Flag for missing velocity
+    }
+
+    private static int CalculateIdleTime(List<TaskItem> userTasks, DateTime now)
+    {
+        var lastTask = userTasks.OrderByDescending(t => t.CreatedAt).FirstOrDefault();
+        if (lastTask != null)
+        {
+            return (int)(now - lastTask.CreatedAt).TotalDays;
+        }
+        return 30; // Max out idle time if no tasks ever
+    }
+
+    private static void FillMissingVelocityWithAverage(List<WorkloadScoreDto> dtos)
+    {
         var membersWithVelocity = dtos.Where(d => d.VelocityDaysRaw >= 0).ToList();
-        double teamAverageVelocity = membersWithVelocity.Any() ? membersWithVelocity.Average(d => d.VelocityDaysRaw) : 5.0; // Default 5 days
+        double teamAverageVelocity = membersWithVelocity.Any() ? membersWithVelocity.Average(d => d.VelocityDaysRaw) : 5.0;
 
         for (int i = 0; i < dtos.Count; i++)
         {
@@ -369,14 +379,10 @@ public class TaskService(
                 dtos[i] = dtos[i] with { VelocityDaysRaw = teamAverageVelocity };
             }
         }
+    }
 
-        // Min-Max Normalization Helper
-        double Normalize(double value, double min, double max)
-        {
-            if (Math.Abs(max - min) < 0.001) return 0; // Avoid division by zero, everyone is equal
-            return (value - min) / (max - min);
-        }
-
+    private static void ApplyNormalizationAndScoring(List<WorkloadScoreDto> dtos)
+    {
         double minW = dtos.Any() ? dtos.Min(d => d.CurrentWorkloadRaw) : 0;
         double maxW = dtos.Any() ? dtos.Max(d => d.CurrentWorkloadRaw) : 0;
 
@@ -392,7 +398,6 @@ public class TaskService(
         double minS = dtos.Any() ? dtos.Min(d => d.SubtasksComplexityRaw) : 0;
         double maxS = dtos.Any() ? dtos.Max(d => d.SubtasksComplexityRaw) : 0;
 
-        // Apply formula
         for (int i = 0; i < dtos.Count; i++)
         {
             var d = dtos[i];
@@ -411,7 +416,11 @@ public class TaskService(
 
             dtos[i] = d with { FinalScore = Math.Round(finalScore, 4) };
         }
+    }
 
-        return dtos.OrderBy(d => d.FinalScore).ToList();
+    private static double Normalize(double value, double min, double max)
+    {
+        if (Math.Abs(max - min) < 0.001) return 0;
+        return (value - min) / (max - min);
     }
 }

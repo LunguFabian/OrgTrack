@@ -31,7 +31,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => { throw error; }
 );
 api.interceptors.response.use(
   (response) => response,
@@ -41,7 +41,7 @@ api.interceptors.response.use(
       if (originalRequest.url.includes('/auth/refresh')) {
         const authStore = useAuthStore();
         authStore.logout();
-        return Promise.reject(error);
+        throw error;
       }
 
       if (isRefreshing) {
@@ -51,7 +51,7 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${token}`;
           return api(originalRequest);
         }).catch(err => {
-          return Promise.reject(err);
+          throw err;
         });
       }
 
@@ -62,7 +62,7 @@ api.interceptors.response.use(
       if (!refreshToken) {
         const authStore = useAuthStore();
         authStore.logout();
-        return Promise.reject(error);
+        throw error;
       }
 
       try {
@@ -88,7 +88,7 @@ api.interceptors.response.use(
         const authStore = useAuthStore();
         authStore.logout();
         window.location.href = '/login'; // Redirect forțat
-        return Promise.reject(refreshError);
+        throw refreshError;
       } finally {
         isRefreshing = false;
       }
@@ -98,6 +98,6 @@ api.interceptors.response.use(
       window.location.href = '/403';
     }
 
-    return Promise.reject(error);
+    throw error;
   }
 );

@@ -332,27 +332,49 @@ const handleSubtaskStatusChange = async (subTask: TaskDto, newStatus: string) =>
   }
 };
 
-const submitTask = async () => {
+const validateTaskForm = () => {
   if (!taskForm.value.title || !taskForm.value.description) {
-    createError.value = 'Title and description are required.';
-    return;
+    return 'Title and description are required.';
   }
 
   if (props.mode === 'me' && !taskForm.value.targetUnitId && !isEditingTask.value) {
-    createError.value = 'Please select a unit for this task.';
-    return;
+    return 'Please select a unit for this task.';
   }
   
   if (taskForm.value.deadline) {
     const selectedDate = new Date(taskForm.value.deadline);
     if (selectedDate < new Date() && !isEditingTask.value) {
-      createError.value = 'The deadline cannot be set in the past.';
-      return;
+      return 'The deadline cannot be set in the past.';
     }
   }
 
   if (taskForm.value.status !== 'ToDo' && !taskForm.value.assigneeId) {
-    createError.value = 'Tasks outside "To Do" must have an assignee.';
+    return 'Tasks outside "To Do" must have an assignee.';
+  }
+  
+  return '';
+};
+
+const handleUpdateTask = async (payload: any) => {
+  const updatedTask = await tasksService.updateTask(taskForm.value.targetUnitId, editingTaskId.value!, payload);
+  const index = tasks.value.findIndex(t => t.id === editingTaskId.value);
+  if (index !== -1) tasks.value[index] = updatedTask;
+  toastStore.showToast('Task updated successfully.', 'success');
+};
+
+const handleCreateTask = async (payload: any) => {
+  const unitToCreateIn = props.mode === 'me' ? taskForm.value.targetUnitId : props.unitId!;
+  const newTask = await tasksService.createTask(unitToCreateIn, payload);
+  if (!tasks.value.some(t => t.id === newTask.id)) {
+    tasks.value.push(newTask);
+  }
+  toastStore.showToast('Task created successfully.', 'success');
+};
+
+const submitTask = async () => {
+  const errorMsg = validateTaskForm();
+  if (errorMsg) {
+    createError.value = errorMsg;
     return;
   }
   
@@ -371,18 +393,9 @@ const submitTask = async () => {
     };
     
     if (isEditingTask.value && editingTaskId.value) {
-      const updatedTask = await tasksService.updateTask(taskForm.value.targetUnitId, editingTaskId.value, payload);
-      const index = tasks.value.findIndex(t => t.id === editingTaskId.value);
-      if (index !== -1) tasks.value[index] = updatedTask;
-      toastStore.showToast('Task updated successfully.', 'success');
+      await handleUpdateTask(payload);
     } else {
-      const unitToCreateIn = props.mode === 'me' ? taskForm.value.targetUnitId : props.unitId!;
-      const newTask = await tasksService.createTask(unitToCreateIn, payload);
-      // Avoid duplication if SignalR already pushed it
-      if (!tasks.value.some(t => t.id === newTask.id)) {
-        tasks.value.push(newTask);
-      }
-      toastStore.showToast('Task created successfully.', 'success');
+      await handleCreateTask(payload);
     }
     
     isTaskModalOpen.value = false;

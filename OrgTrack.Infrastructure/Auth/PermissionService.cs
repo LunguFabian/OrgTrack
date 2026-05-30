@@ -9,31 +9,35 @@ public class PermissionService(OrgTrackDbContext context) : IPermissionService
 {
     public async Task<bool> HasPermissionAsync(Guid userId, Guid targetUnitId, string requiredPermission)
     {
-        var user = await context.Users.FindAsync(userId);
-        if (user != null && Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" && user.Email == "admin@aiesec.ro") 
-        {
-            return true;
-        }
+        if (await IsSuperAdminAsync(userId)) return true;
+
         var pathUnitIds = await GetPathToRootAsync(targetUnitId);
         var userRoles = await context.UserUnitRoles
             .Include(uur => uur.Role)
             .Where(uur => uur.UserId == userId && pathUnitIds.Contains(uur.OrganizationUnitId))
             .ToListAsync();
-        foreach (var userRole in userRoles)
-        {
-            if (userRole.Role == null || string.IsNullOrEmpty(userRole.Role.Permissions))
-            {
-                continue;
-            }
 
-            var permissions = JsonSerializer.Deserialize<List<string>>(userRole.Role.Permissions);
-            if (permissions == null) continue;
-            if (permissions.Contains("All")) return true;
+        return userRoles.Any(ur => ur.Role != null && RoleHasPermission(ur.Role.Permissions, requiredPermission));
+    }
 
-            if (requiredPermission.EndsWith(".View") && permissions.Contains("All.View")) return true;
+    private async Task<bool> IsSuperAdminAsync(Guid userId)
+    {
+        var user = await context.Users.FindAsync(userId);
+        return user != null 
+            && Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" 
+            && user.Email == "admin@aiesec.ro";
+    }
 
-            if (permissions.Contains(requiredPermission)) return true;
-        }
+    private static bool RoleHasPermission(string rolePermissionsJson, string requiredPermission)
+    {
+        if (string.IsNullOrEmpty(rolePermissionsJson)) return false;
+
+        var permissions = JsonSerializer.Deserialize<List<string>>(rolePermissionsJson);
+        if (permissions == null) return false;
+        
+        if (permissions.Contains("All")) return true;
+        if (requiredPermission.EndsWith(".View") && permissions.Contains("All.View")) return true;
+        if (permissions.Contains(requiredPermission)) return true;
 
         return false;
     }
@@ -66,8 +70,7 @@ public class PermissionService(OrgTrackDbContext context) : IPermissionService
 
     public async Task<bool> IsDirectMemberAsync(Guid userId, Guid unitId)
     {
-        var user = await context.Users.FindAsync(userId);
-        if (user != null && Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" && user.Email == "admin@aiesec.ro") return true;
+        if (await IsSuperAdminAsync(userId)) return true;
 
         return await context.UserUnitRoles
             .AnyAsync(uur => uur.UserId == userId && uur.OrganizationUnitId == unitId);
