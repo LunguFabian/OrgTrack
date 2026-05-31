@@ -102,7 +102,7 @@ public class AnalyticsController(
         {
             var score = await analyticsService.GetMemberScoreAsync(member.UserId);
             var roleName = member.RoleName ?? "Unknown";
-            var formattedRole = System.Text.RegularExpressions.Regex.Replace(roleName, "(?<!^)([A-Z])", " $1");
+            var formattedRole = System.Text.RegularExpressions.Regex.Replace(roleName, "(?<!^)([A-Z])", " $1", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromMilliseconds(100));
             scores.Add(score with { UnitName = member.UnitName ?? "Unknown", RoleName = formattedRole });
         }
 
@@ -143,7 +143,7 @@ public class AnalyticsController(
             {
                 var score = await analyticsService.GetMemberScoreAsync(member.UserId);
                 var roleName = member.RoleName ?? "Unknown";
-                var formattedRole = System.Text.RegularExpressions.Regex.Replace(roleName, "(?<!^)([A-Z])", " $1");
+                var formattedRole = System.Text.RegularExpressions.Regex.Replace(roleName, "(?<!^)([A-Z])", " $1", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromMilliseconds(100));
                 scores.Add(score with { UnitName = member.UnitName ?? "Unknown", RoleName = formattedRole });
             }
 

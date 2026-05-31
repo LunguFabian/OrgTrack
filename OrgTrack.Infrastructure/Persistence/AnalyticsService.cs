@@ -56,7 +56,7 @@ public class AnalyticsService(
         var recentLogs = logs
             .Take(20)
             .Select(l => {
-                var formattedAction = System.Text.RegularExpressions.Regex.Replace(l.Action, "(?<!^)([A-Z])", " $1");
+                var formattedAction = System.Text.RegularExpressions.Regex.Replace(l.Action, "(?<!^)([A-Z])", " $1", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromMilliseconds(100));
                 var details = l.Details;
                 if (details != null)
                 {
