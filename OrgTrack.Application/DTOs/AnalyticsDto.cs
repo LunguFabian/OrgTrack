@@ -4,7 +4,8 @@ public record ActivityLogDto(
     DateTime Timestamp,
     string Action,
     string EntityType,
-    string? Details
+    string? Details,
+    string? UnitName = null
 );
 
 public record MemberActivityScoreDto(
@@ -12,7 +13,9 @@ public record MemberActivityScoreDto(
     string UserName,
     int TasksDone,
     int EventsAttended,
-    int TotalScore
+    int TotalScore,
+    string UnitName = "Unknown",
+    string RoleName = "Unknown"
 );
 
 public record UnitActivitySummaryDto(

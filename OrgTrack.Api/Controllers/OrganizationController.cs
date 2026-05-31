@@ -115,7 +115,7 @@ public class OrganizationController(
         var unit = await organizationService.UpdateUnitAsync(id, request.Name, request.Description);
         if (unit == null)
         {
-            return NotFound(new { error = "Unitatea nu a fost găsită." });
+            return NotFound(new { error = "Unit not found." });
         }
         return Ok(unit);
     }
@@ -138,7 +138,7 @@ public class OrganizationController(
             var deleted = await organizationService.DeleteUnitAsync(id);
             if (!deleted)
             {
-                return NotFound(new { error = "Unitatea nu a fost găsită." });
+                return NotFound(new { error = "Unit not found." });
             }
             return NoContent();
         }

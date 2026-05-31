@@ -47,7 +47,7 @@ public class AnalyticsService(
         var allIds = new List<Guid> { unitId };
         allIds.AddRange(descendantIds);
 
-        var logs = await activityLogRepository.GetByUnitIdAsync(unitId, limit: 1000);
+        var logs = await activityLogRepository.GetByUnitIdsAsync(allIds, limit: 1000);
 
         var tasksDone = await context.Tasks.CountAsync(t => allIds.Contains(t.OrganizationUnitId) && t.Status == TaskStatus.Done);
         var eventsHeld = await context.Events.CountAsync(e => allIds.Contains(e.OrganizationUnitId));
@@ -55,7 +55,25 @@ public class AnalyticsService(
         
         var recentLogs = logs
             .Take(20)
-            .Select(l => new ActivityLogDto(l.CreatedAt, l.Action, l.EntityType, l.Details));
+            .Select(l => {
+                var formattedAction = System.Text.RegularExpressions.Regex.Replace(l.Action, "(?<!^)([A-Z])", " $1");
+                var details = l.Details;
+                if (details != null)
+                {
+                    details = details.Replace("Task creat:", "Task created:")
+                                     .Replace("Status schimbat:", "Status changed:")
+                                     .Replace("Task finalizat:", "Task completed:")
+                                     .Replace("Membrul ", "Member ")
+                                     .Replace(" a fost adăugat în unitate", " was added to the unit")
+                                     .Replace(" a fost eliminat din unitate", " was removed from the unit")
+                                     .Replace("Eveniment creat:", "Event created:")
+                                     .Replace("Prezența utilizatorului ", "Attendance for user ")
+                                     .Replace(" setată la:", " set to:")
+                                     .Replace("S-a alăturat echipei printr-un link de invitație", "Joined the team via an invite link")
+                                     .Replace("Unitate creată:", "Unit created:");
+                }
+                return new ActivityLogDto(l.CreatedAt, formattedAction, l.EntityType, details, l.OrganizationUnit?.Name);
+            });
 
         return new UnitActivitySummaryDto(
             unitId,

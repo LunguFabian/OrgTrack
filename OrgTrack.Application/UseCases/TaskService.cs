@@ -109,7 +109,10 @@ public class TaskService(
         await activityLogService.LogTaskStatusChangedAsync(
             requestingUserId, task.Id, oldStatus, newStatus.ToString(), task.OrganizationUnitId);
         if (newStatus == TaskStatus.Done)
-            await activityLogService.LogTaskDoneAsync(requestingUserId, task.Id, task.Title, task.OrganizationUnitId);
+        {
+            var targetUserId = task.AssigneeId ?? requestingUserId;
+            await activityLogService.LogTaskDoneAsync(targetUserId, task.Id, task.Title, task.OrganizationUnitId);
+        }
         var dto = MapToDto(task);
 
         // Real-time: notify unit group

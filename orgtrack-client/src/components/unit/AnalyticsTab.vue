@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { analyticsService, type UnitActivitySummaryDto, type MemberActivityScoreDto } from '../../api/services/analytics.service';
 import type { UnitMemberDto } from '../../types/unit';
-import { BarChart, Activity, Users, CalendarCheck, CheckSquare, Trophy, AlertCircle } from 'lucide-vue-next';
+import { BarChart, Activity, Users, CalendarCheck, CheckSquare, Trophy, AlertCircle, FileText, Table } from 'lucide-vue-next';
 import { Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js';
 
@@ -11,12 +11,15 @@ ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 const props = defineProps<{
   unitId: string;
   members: UnitMemberDto[];
+  unitType?: string;
 }>();
 
 const isLoading = ref(true);
 const error = ref('');
+type EnhancedScoreDto = MemberActivityScoreDto & { unitName: string };
 const summary = ref<UnitActivitySummaryDto | null>(null);
-const memberScores = ref<MemberActivityScoreDto[]>([]);
+const memberScores = ref<EnhancedScoreDto[]>([]);
+const isDownloading = ref(false);
 
 const fetchAnalytics = async () => {
   isLoading.value = true;
@@ -25,13 +28,11 @@ const fetchAnalytics = async () => {
     // 1. Fetch unit summary
     summary.value = await analyticsService.getUnitSummary(props.unitId);
 
-    // 2. Fetch scores for all members in parallel
-    const scorePromises = props.members.map(m => analyticsService.getMemberScore(m.userId).catch(() => null));
-    const results = await Promise.all(scorePromises);
+    // 2. Fetch the whole leaderboard from the new endpoint
+    const scores = await analyticsService.getLeaderboard(props.unitId);
     
-    // Filter out nulls (in case of errors for specific users) and sort by score descending
-    memberScores.value = results.filter((r): r is MemberActivityScoreDto => r !== null)
-                                .sort((a, b) => b.totalScore - a.totalScore);
+    // The backend already handles the logic for UnitName and Top 5 limiting
+    memberScores.value = scores as EnhancedScoreDto[];
   } catch (err: any) {
     error.value = 'Failed to load analytics data. You might not have permission.';
     console.error(err);
@@ -75,18 +76,61 @@ const chartOptions = {
     }
   }
 };
+
+const downloadReport = async (format: 'pdf' | 'excel') => {
+  if (!summary.value) return;
+  
+  isDownloading.value = true;
+  try {
+    const blob = await analyticsService.downloadReport(props.unitId, format);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `OrgTrack_Report_${summary.value.unitName}_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (err) {
+    console.error('Failed to download report', err);
+    // You could show a toast here using useToastStore if it was imported
+  } finally {
+    isDownloading.value = false;
+  }
+};
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center gap-3 mb-6">
-      <div class="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/20">
-        <BarChart class="w-5 h-5 text-purple-400" />
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/20">
+          <BarChart class="w-5 h-5 text-purple-400" />
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-text-strong">Unit Analytics</h2>
+          <p class="text-sm text-text-muted">Activity and performance metrics for this unit</p>
+        </div>
       </div>
-      <div>
-        <h2 class="text-xl font-bold text-text-strong">Unit Analytics</h2>
-        <p class="text-sm text-text-muted">Activity and performance metrics for this unit</p>
+      
+      <div class="flex items-center gap-2" v-if="summary">
+        <button 
+          @click="downloadReport('pdf')"
+          :disabled="isDownloading"
+          class="flex items-center gap-2 px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg text-sm font-medium transition-colors border border-purple-500/20 disabled:opacity-50"
+        >
+          <FileText class="w-4 h-4" />
+          {{ isDownloading ? '...' : 'Export PDF' }}
+        </button>
+        <button 
+          @click="downloadReport('excel')"
+          :disabled="isDownloading"
+          class="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium transition-colors border border-emerald-500/20 disabled:opacity-50"
+        >
+          <Table class="w-4 h-4" />
+          {{ isDownloading ? '...' : 'Export Excel' }}
+        </button>
       </div>
     </div>
 
@@ -166,8 +210,12 @@ const chartOptions = {
                     #{{ index + 1 }}
                   </div>
                   <div>
-                    <p class="text-sm font-medium text-text-strong">{{ score.userName }}</p>
-                    <p class="text-xs text-text-muted">{{ score.tasksDone }} tasks · {{ score.eventsAttended }} events</p>
+                    <div class="flex items-center gap-2">
+                      <p class="text-sm font-medium text-text-strong">{{ score.userName }}</p>
+                      <span class="text-xs font-medium text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded border border-blue-400/20 max-w-[80px] truncate" :title="score.roleName">{{ score.roleName }}</span>
+                      <span v-if="unitType === 'Committee' || unitType === 'Department'" class="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/20 max-w-[120px] truncate" :title="score.unitName">{{ score.unitName }}</span>
+                    </div>
+                    <p class="text-xs text-text-muted mt-1">{{ score.tasksDone }} tasks · {{ score.eventsAttended }} events</p>
                   </div>
                 </div>
                 <div class="text-right">

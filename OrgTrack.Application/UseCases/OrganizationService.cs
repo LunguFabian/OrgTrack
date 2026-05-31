@@ -205,7 +205,23 @@ public class OrganizationService(
     /// </summary>
     public async Task<List<UnitMemberDto>> GetMembersAsync(Guid unitId)
     {
-        var members = await unitRepository.GetMembersAsync(unitId);
+        var unit = await unitRepository.GetByIdAsync(unitId);
+        if (unit == null) return new List<UnitMemberDto>();
+
+        List<UserUnitRole> members;
+
+        if (unit.Type != UnitType.National)
+        {
+            var descendantIds = await unitRepository.GetDescendantUnitIdsAsync(unitId);
+            var allIds = new List<Guid> { unitId };
+            allIds.AddRange(descendantIds);
+            members = await unitRepository.GetMembersForUnitsAsync(allIds);
+            members = members.DistinctBy(m => m.UserId).ToList();
+        }
+        else
+        {
+            members = await unitRepository.GetMembersAsync(unitId);
+        }
 
         return members.Select(m => new UnitMemberDto(
             m.UserId,
@@ -214,8 +230,8 @@ public class OrganizationService(
             m.User.Email,
             m.Role!.Name,
             m.CreatedAt,
-            null,
-            null,
+            m.OrganizationUnit?.Name,
+            m.OrganizationUnitId,
             m.User.PictureUrl
         )).ToList();
     }

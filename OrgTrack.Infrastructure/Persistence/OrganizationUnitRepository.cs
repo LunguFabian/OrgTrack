@@ -129,6 +129,7 @@ public class OrganizationUnitRepository(OrgTrackDbContext context) : IOrganizati
             .Where(m => m.OrganizationUnitId == unitId)
             .Include(m => m.User)
             .Include(m => m.Role)
+            .Include(m => m.OrganizationUnit)
             .ToListAsync();
     }
 
@@ -139,6 +140,7 @@ public class OrganizationUnitRepository(OrgTrackDbContext context) : IOrganizati
             .Where(m => unitIdList.Contains(m.OrganizationUnitId))
             .Include(m => m.User)
             .Include(m => m.Role)
+            .Include(m => m.OrganizationUnit)
             .ToListAsync();
     }
 

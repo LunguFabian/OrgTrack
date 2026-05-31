@@ -56,7 +56,7 @@ public class InviteLinksController(
         var preview = await inviteLinkService.GetInviteDetailsAsync(token);
         if (preview == null)
         {
-            return NotFound(new { error = "Link-ul de invitație nu există." });
+            return NotFound(new { error = "Invite link does not exist." });
         }
 
         return Ok(preview);

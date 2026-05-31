@@ -22,6 +22,18 @@ public class ActivityLogRepository(OrgTrackDbContext context) : IActivityLogRepo
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<ActivityLog>> GetByUnitIdsAsync(IEnumerable<Guid> unitIds, int limit = 50)
+    {
+        var ids = unitIds.ToList();
+        return await context.ActivityLogs
+            .Include(l => l.User)
+            .Include(l => l.OrganizationUnit)
+            .Where(l => l.OrganizationUnitId.HasValue && ids.Contains(l.OrganizationUnitId.Value))
+            .OrderByDescending(l => l.CreatedAt)
+            .Take(limit)
+            .ToListAsync();
+    }
+
     public async Task<IEnumerable<ActivityLog>> GetByUserIdAsync(Guid userId, int limit = 50)
     {
         return await context.ActivityLogs

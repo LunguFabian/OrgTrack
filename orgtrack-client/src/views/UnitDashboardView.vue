@@ -211,7 +211,7 @@ const handleRoleUpdated = () => {
 
         <!-- Analytics Tab -->
         <div v-else-if="currentTab === 'analytics'" class="bg-surface border border-border rounded-2xl p-6">
-          <AnalyticsTab :unit-id="unitId" :members="members" />
+          <AnalyticsTab :unit-id="unitId" :members="members" :unit-type="unitData.type" />
         </div>
       </div>
     </template>

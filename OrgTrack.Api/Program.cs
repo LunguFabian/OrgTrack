@@ -87,6 +87,7 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<IMessageRepository, MessageRepository>();
 builder.Services.AddScoped<MessageService>();
+builder.Services.AddScoped<ReportService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IRealtimeNotifier, OrgTrack.Api.Hubs.SignalRNotifier>();
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -97,6 +98,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<OrgTrackDbContext>();
