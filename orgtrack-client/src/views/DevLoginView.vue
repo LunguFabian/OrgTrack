@@ -48,8 +48,9 @@ const handleDevLogin = async () => {
       <!-- Dev Login Form -->
       <form @submit.prevent="handleDevLogin" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-text-muted mb-1">Email address</label>
+          <label for="dev-email" class="block text-sm font-medium text-text-muted mb-1">Email address</label>
           <input 
+            id="dev-email"
             v-model="email"
             type="email" 
             placeholder="admin@aiesec.ro"

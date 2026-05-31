@@ -573,8 +573,9 @@ const handleDeleteEvent = async (event: EventDto) => {
 
           <!-- Title -->
           <div>
-            <label class="block text-xs font-medium text-text-muted mb-1.5">Event Title *</label>
+            <label for="event-title" class="block text-xs font-medium text-text-muted mb-1.5">Event Title *</label>
             <input
+              id="event-title"
               v-model="eventForm.title"
               placeholder="e.g., Weekly Team Sync"
               class="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-sm text-text-strong placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors"
@@ -583,8 +584,9 @@ const handleDeleteEvent = async (event: EventDto) => {
 
           <!-- Description -->
           <div>
-            <label class="block text-xs font-medium text-text-muted mb-1.5">Description</label>
+            <label for="event-desc" class="block text-xs font-medium text-text-muted mb-1.5">Description</label>
             <textarea
+              id="event-desc"
               v-model="eventForm.description"
               placeholder="What's this event about?"
               rows="2"
@@ -595,8 +597,9 @@ const handleDeleteEvent = async (event: EventDto) => {
           <!-- Date/Time row -->
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-medium text-text-muted mb-1.5">Start *</label>
+              <label for="event-start" class="block text-xs font-medium text-text-muted mb-1.5">Start *</label>
               <input
+                id="event-start"
                 v-model="eventForm.startDate"
                 type="datetime-local"
                 class="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors"
@@ -604,8 +607,9 @@ const handleDeleteEvent = async (event: EventDto) => {
               />
             </div>
             <div>
-              <label class="block text-xs font-medium text-text-muted mb-1.5">End *</label>
+              <label for="event-end" class="block text-xs font-medium text-text-muted mb-1.5">End *</label>
               <input
+                id="event-end"
                 v-model="eventForm.endDate"
                 type="datetime-local"
                 class="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors"
@@ -616,7 +620,7 @@ const handleDeleteEvent = async (event: EventDto) => {
 
           <!-- Invited Units -->
           <div class="relative">
-            <label class="block text-xs font-medium text-text-muted mb-1.5">Invite Entire Units / Teams</label>
+            <span class="block text-xs font-medium text-text-muted mb-1.5">Invite Entire Units / Teams</span>
             <div 
               @click="isUnitsDropdownOpen = !isUnitsDropdownOpen"
               class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong cursor-pointer flex justify-between items-center"
@@ -641,9 +645,10 @@ const handleDeleteEvent = async (event: EventDto) => {
 
           <!-- Invited Users -->
           <div>
-            <label class="block text-xs font-medium text-text-muted mb-1.5">Invite Specific Members</label>
+            <label for="event-invite-members" class="block text-xs font-medium text-text-muted mb-1.5">Invite Specific Members</label>
             <div class="relative">
               <input
+                id="event-invite-members"
                 v-model="userSearchQuery"
                 @input="onUserSearch"
                 placeholder="Search by name or email..."
@@ -702,8 +707,9 @@ const handleDeleteEvent = async (event: EventDto) => {
 
           <!-- Recurrence Pattern (shown only if recurring) -->
           <div v-if="eventForm.isRecurring">
-            <label class="block text-xs font-medium text-text-muted mb-1.5">Recurrence Pattern</label>
+            <label for="event-recurrence" class="block text-xs font-medium text-text-muted mb-1.5">Recurrence Pattern</label>
             <select
+              id="event-recurrence"
               v-model="eventForm.recurrencePattern"
               class="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors"
             >

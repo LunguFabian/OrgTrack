@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { analyticsService, type UnitActivitySummaryDto, type MemberActivityScoreDto } from '../../api/services/analytics.service';
 import type { UnitMemberDto } from '../../types/unit';
-import { BarChart, Activity, Users, CalendarCheck, CheckSquare, Trophy, AlertCircle, FileText, Table } from 'lucide-vue-next';
+import { BarChart, Activity, Users, CalendarCheck, CheckSquare, Trophy, AlertCircle, FileText, Table as TableIcon } from 'lucide-vue-next';
 import { Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js';
 
@@ -128,7 +128,7 @@ const downloadReport = async (format: 'pdf' | 'excel') => {
           :disabled="isDownloading"
           class="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium transition-colors border border-emerald-500/20 disabled:opacity-50"
         >
-          <Table class="w-4 h-4" />
+          <TableIcon class="w-4 h-4" />
           {{ isDownloading ? '...' : 'Export Excel' }}
         </button>
       </div>

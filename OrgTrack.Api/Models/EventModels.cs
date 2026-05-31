@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using OrgTrack.Domain.Enums;
 
 namespace OrgTrack.Api.Models;
@@ -5,9 +6,9 @@ namespace OrgTrack.Api.Models;
 public record CreateEventRequest(
     string Title,
     string Description,
-    DateTime StartDate,
-    DateTime EndDate,
-    bool IsRecurring,
+    [property: JsonRequired] DateTime StartDate,
+    [property: JsonRequired] DateTime EndDate,
+    [property: JsonRequired] bool IsRecurring,
     string? RecurrencePattern,
     string? ExternalCalendarId,
     List<Guid> InvitedUnitIds,
@@ -15,15 +16,15 @@ public record CreateEventRequest(
 );
 
 public record RsvpRequest(
-    PresenceStatus Status
+    [property: JsonRequired] PresenceStatus Status
 );
 
 public record UpdateEventRequest(
     string Title,
     string Description,
-    DateTime StartDate,
-    DateTime EndDate,
-    bool IsRecurring,
+    [property: JsonRequired] DateTime StartDate,
+    [property: JsonRequired] DateTime EndDate,
+    [property: JsonRequired] bool IsRecurring,
     string? RecurrencePattern,
     string? ExternalCalendarId,
     List<Guid> InvitedUnitIds,

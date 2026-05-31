@@ -110,8 +110,9 @@ const unitTypes = [
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-text-muted mb-1.5">Unit Name</label>
+          <label for="unit-name" class="block text-sm font-medium text-text-muted mb-1.5">Unit Name</label>
           <input 
+            id="unit-name"
             v-model="form.name"
             type="text" 
             placeholder="e.g. Marketing Department" 
@@ -121,8 +122,9 @@ const unitTypes = [
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-text-muted mb-1.5">Description</label>
+          <label for="unit-description" class="block text-sm font-medium text-text-muted mb-1.5">Description</label>
           <input 
+            id="unit-description"
             v-model="form.description"
             type="text" 
             placeholder="e.g. Focuses on marketing campaigns" 
@@ -131,8 +133,9 @@ const unitTypes = [
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-text-muted mb-1.5">Unit Type</label>
+          <label for="unit-type" class="block text-sm font-medium text-text-muted mb-1.5">Unit Type</label>
           <select 
+            id="unit-type"
             v-model="form.type"
             class="w-full px-4 py-2.5 bg-bg border border-border rounded-xl text-text-strong focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all appearance-none"
           >
@@ -143,8 +146,9 @@ const unitTypes = [
         </div>
 
         <div v-if="form.type === 'Department'">
-          <label class="block text-sm font-medium text-text-muted mb-1.5">Department Category</label>
+          <label for="department-type" class="block text-sm font-medium text-text-muted mb-1.5">Department Category</label>
           <select 
+            id="department-type"
             v-model="form.departmentType"
             class="w-full px-4 py-2.5 bg-bg border border-border rounded-xl text-text-strong focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all appearance-none"
           >

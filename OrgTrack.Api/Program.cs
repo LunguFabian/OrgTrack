@@ -122,5 +122,5 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<OrgTrackHub>("/hubs/orgtrack");
 
-app.Run();
+await app.RunAsync();
 public partial class Program { }

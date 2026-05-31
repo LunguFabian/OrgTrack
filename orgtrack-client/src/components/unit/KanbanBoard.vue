@@ -510,19 +510,19 @@ const submitTask = async () => {
           
           <div class="space-y-4">
             <div>
-              <label class="block text-xs font-medium text-text-muted mb-1.5">Task Title *</label>
-              <input v-model="taskForm.title" type="text" placeholder="E.g. Prepare marketing materials" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors" />
+              <label for="task-title" class="block text-xs font-medium text-text-muted mb-1.5">Task Title *</label>
+              <input id="task-title" v-model="taskForm.title" type="text" placeholder="E.g. Prepare marketing materials" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors" />
             </div>
             
             <div>
-              <label class="block text-xs font-medium text-text-muted mb-1.5">Description *</label>
-              <textarea v-model="taskForm.description" rows="3" placeholder="Add more details about what needs to be done..." class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors resize-none"></textarea>
+              <label for="task-desc" class="block text-xs font-medium text-text-muted mb-1.5">Description *</label>
+              <textarea id="task-desc" v-model="taskForm.description" rows="3" placeholder="Add more details about what needs to be done..." class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong placeholder-gray-600 focus:border-emerald-500 outline-none transition-colors resize-none"></textarea>
             </div>
             
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-medium text-text-muted mb-1.5">Priority</label>
-                <select v-model="taskForm.priority" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors">
+                <label for="task-priority" class="block text-xs font-medium text-text-muted mb-1.5">Priority</label>
+                <select id="task-priority" v-model="taskForm.priority" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors">
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
                   <option value="High">High</option>
@@ -531,19 +531,19 @@ const submitTask = async () => {
               </div>
               
               <div>
-                <label class="block text-xs font-medium text-text-muted mb-1.5">Deadline (Optional)</label>
-                <input v-model="taskForm.deadline" type="datetime-local" :min="minDateTime" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors" style="color-scheme: dark;" />
+                <label for="task-deadline" class="block text-xs font-medium text-text-muted mb-1.5">Deadline (Optional)</label>
+                <input id="task-deadline" v-model="taskForm.deadline" type="datetime-local" :min="minDateTime" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors" style="color-scheme: dark;" />
               </div>
             </div>
             
             <div>
               <div class="flex items-center justify-between mb-1.5">
-                <label class="block text-xs font-medium text-text-muted">Assignee (Optional)</label>
+                <label for="task-assignee" class="block text-xs font-medium text-text-muted">Assignee (Optional)</label>
                 <span v-if="isLoadingWorkload" class="text-[10px] text-emerald-400 flex items-center gap-1">
                   <Loader2 class="w-3 h-3 animate-spin" /> Analyzing workload...
                 </span>
               </div>
-              <select v-model="taskForm.assigneeId" :disabled="props.mode === 'me'" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
+              <select id="task-assignee" v-model="taskForm.assigneeId" :disabled="props.mode === 'me'" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
                 <option value="">Unassigned</option>
                 <option 
                   v-for="member in sortedMembers" 
@@ -563,8 +563,8 @@ const submitTask = async () => {
             
             <!-- Unit selection only in 'me' mode -->
             <div v-if="props.mode === 'me'">
-              <label class="block text-xs font-medium text-text-muted mb-1.5">Target Unit *</label>
-              <select v-model="taskForm.targetUnitId" :disabled="isEditingTask" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
+              <label for="task-target-unit" class="block text-xs font-medium text-text-muted mb-1.5">Target Unit *</label>
+              <select id="task-target-unit" v-model="taskForm.targetUnitId" :disabled="isEditingTask" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong focus:border-emerald-500 outline-none transition-colors disabled:opacity-50">
                 <option value="" disabled>Select the unit for this task...</option>
                 <option v-for="unit in myUnits" :key="unit.id" :value="unit.id">
                   {{ unit.name }}
@@ -575,7 +575,7 @@ const submitTask = async () => {
             <!-- SubTasks Section in Edit Mode -->
             <div v-if="isEditingTask && !taskForm.parentTaskId" class="mt-6 pt-6 border-t border-border">
               <div class="flex items-center justify-between mb-3">
-                <label class="block text-xs font-semibold text-text-strong uppercase tracking-wider">Sub-tasks</label>
+                <h4 class="block text-xs font-semibold text-text-strong uppercase tracking-wider">Sub-tasks</h4>
                 <button @click="openCreateModal(editingTaskId)" class="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1">
                   <Plus class="w-3 h-3" /> Add sub-task
                 </button>

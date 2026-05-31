@@ -196,13 +196,13 @@ const formatDate = (iso: string) =>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-medium text-text-muted mb-1.5">Expires in (hours)</label>
-            <input v-model.number="inviteForm.expiresInHours" type="number" min="1" max="720"
+            <label for="invite-expires" class="block text-xs font-medium text-text-muted mb-1.5">Expires in (hours)</label>
+            <input id="invite-expires" v-model.number="inviteForm.expiresInHours" type="number" min="1" max="720"
               class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-text-strong text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
           </div>
           <div>
-            <label class="block text-xs font-medium text-text-muted mb-1.5">Max uses</label>
-            <input v-model.number="inviteForm.maxUses" type="number" min="1" max="500"
+            <label for="invite-uses" class="block text-xs font-medium text-text-muted mb-1.5">Max uses</label>
+            <input id="invite-uses" v-model.number="inviteForm.maxUses" type="number" min="1" max="500"
               class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-text-strong text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
           </div>
         </div>
@@ -340,16 +340,16 @@ const formatDate = (iso: string) =>
           Assigning a new role to <strong class="text-text-strong">{{ assignRoleModal.member?.firstName }} {{ assignRoleModal.member?.lastName }}</strong>.
         </p>
         <div>
-          <label class="block text-xs font-medium text-text-muted mb-1.5">Select Role</label>
-          <select v-model="selectedRole" class="w-full px-3 py-2.5 bg-bg border border-border rounded-lg text-text-strong text-sm focus:outline-none focus:border-emerald-500 transition-colors">
+          <label for="select-role" class="block text-xs font-medium text-text-muted mb-1.5">Select Role</label>
+          <select id="select-role" v-model="selectedRole" class="w-full px-3 py-2.5 bg-bg border border-border rounded-lg text-text-strong text-sm focus:outline-none focus:border-emerald-500 transition-colors">
             <option v-for="role in leadershipRoles" :key="role.value" :value="role.value">{{ role.label }}</option>
           </select>
         </div>
 
         <!-- Select Target Unit (if options exist) -->
         <div v-if="availableTargetUnits.length > 0" class="mb-4">
-          <label class="block text-xs text-text-muted font-medium mb-1.5">Destination Unit *</label>
-          <select v-model="selectedTargetUnitId" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong outline-none focus:border-emerald-500 transition-colors">
+          <label for="select-dest-unit" class="block text-xs text-text-muted font-medium mb-1.5">Destination Unit *</label>
+          <select id="select-dest-unit" v-model="selectedTargetUnitId" class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-strong outline-none focus:border-emerald-500 transition-colors">
             <option value="" disabled>Select destination...</option>
             <option v-for="u in availableTargetUnits" :key="u.id" :value="u.id">{{ u.name }}</option>
           </select>

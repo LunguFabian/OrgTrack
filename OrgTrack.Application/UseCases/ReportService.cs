@@ -191,109 +191,116 @@ public class ReportService
         container.PaddingVertical(1, Unit.Centimetre).Column(column =>
         {
             column.Spacing(20);
+            ComposeSummaryStats(column, summary);
+            ComposeLeaderboard(column, scores, showUnitColumn);
+            ComposeRecentActivityLog(column, summary);
+        });
+    }
 
-            // 1. Summary Stats
-            column.Item().Background(_surfaceColor).Padding(10).Row(row =>
+    private void ComposeSummaryStats(ColumnDescriptor column, UnitActivitySummaryDto summary)
+    {
+        column.Item().Background(_surfaceColor).Padding(10).Row(row =>
+        {
+            row.RelativeItem().AlignCenter().Column(c =>
             {
-                row.RelativeItem().AlignCenter().Column(c =>
-                {
-                    c.Item().Text("Tasks Completed").FontColor(_mutedColor).FontSize(10);
-                    c.Item().Text(summary.TasksDone.ToString()).FontSize(24).SemiBold().FontColor(_primaryColor);
-                });
-                row.RelativeItem().AlignCenter().Column(c =>
-                {
-                    c.Item().Text("Events Held").FontColor(_mutedColor).FontSize(10);
-                    c.Item().Text(summary.EventsHeld.ToString()).FontSize(24).SemiBold().FontColor(_primaryColor);
-                });
-                row.RelativeItem().AlignCenter().Column(c =>
-                {
-                    c.Item().Text("Active Members").FontColor(_mutedColor).FontSize(10);
-                    c.Item().Text(summary.MembersActive.ToString()).FontSize(24).SemiBold().FontColor(_primaryColor);
-                });
+                c.Item().Text("Tasks Completed").FontColor(_mutedColor).FontSize(10);
+                c.Item().Text(summary.TasksDone.ToString()).FontSize(24).SemiBold().FontColor(_primaryColor);
             });
-
-            // 2. Leaderboard Table
-            column.Item().Text("Member Leaderboard").FontSize(14).SemiBold();
-            column.Item().Table(table =>
+            row.RelativeItem().AlignCenter().Column(c =>
             {
-                table.ColumnsDefinition(columns =>
-                {
-                    columns.ConstantColumn(30); // Rank
-                    columns.RelativeColumn(3);  // Name
-                    columns.RelativeColumn(3);  // Role
-                    if (showUnitColumn)
-                    {
-                        columns.RelativeColumn(3);  // Unit
-                    }
-                    columns.ConstantColumn(50); // Tasks
-                    columns.ConstantColumn(50); // Events
-                    columns.ConstantColumn(50); // Score
-                });
+                c.Item().Text("Events Held").FontColor(_mutedColor).FontSize(10);
+                c.Item().Text(summary.EventsHeld.ToString()).FontSize(24).SemiBold().FontColor(_primaryColor);
+            });
+            row.RelativeItem().AlignCenter().Column(c =>
+            {
+                c.Item().Text("Active Members").FontColor(_mutedColor).FontSize(10);
+                c.Item().Text(summary.MembersActive.ToString()).FontSize(24).SemiBold().FontColor(_primaryColor);
+            });
+        });
+    }
 
-                // Header
-                table.Header(header =>
+    private void ComposeLeaderboard(ColumnDescriptor column, List<MemberActivityScoreDto> scores, bool showUnitColumn)
+    {
+        column.Item().Text("Member Leaderboard").FontSize(14).SemiBold();
+        column.Item().Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.ConstantColumn(30); // Rank
+                columns.RelativeColumn(3);  // Name
+                columns.RelativeColumn(3);  // Role
+                if (showUnitColumn)
                 {
-                    header.Cell().Background(_primaryColor).Padding(5).Text("#").FontColor(Colors.White).SemiBold();
-                    header.Cell().Background(_primaryColor).Padding(5).Text("Name").FontColor(Colors.White).SemiBold();
-                    header.Cell().Background(_primaryColor).Padding(5).Text("Role").FontColor(Colors.White).SemiBold();
-                    if (showUnitColumn)
-                    {
-                        header.Cell().Background(_primaryColor).Padding(5).Text("Unit").FontColor(Colors.White).SemiBold();
-                    }
-                    header.Cell().Background(_primaryColor).Padding(5).AlignRight().Text("Tasks").FontColor(Colors.White).SemiBold();
-                    header.Cell().Background(_primaryColor).Padding(5).AlignRight().Text("Events").FontColor(Colors.White).SemiBold();
-                    header.Cell().Background(_primaryColor).Padding(5).AlignRight().Text("Score").FontColor(Colors.White).SemiBold();
-                });
-
-                // Rows
-                int rank = 1;
-                foreach (var score in scores.OrderByDescending(s => s.TotalScore))
-                {
-                    string bg = rank % 2 == 0 ? Colors.White : _surfaceColor;
-                    
-                    table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).Text(rank.ToString());
-                    table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).Text(score.UserName);
-                    table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).Text(score.RoleName);
-                    if (showUnitColumn)
-                    {
-                        table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).Text(score.UnitName);
-                    }
-                    table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).AlignRight().Text(score.TasksDone.ToString());
-                    table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).AlignRight().Text(score.EventsAttended.ToString());
-                    table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).AlignRight().Text(score.TotalScore.ToString()).SemiBold();
-                    
-                    rank++;
+                    columns.RelativeColumn(3);  // Unit
                 }
+                columns.ConstantColumn(50); // Tasks
+                columns.ConstantColumn(50); // Events
+                columns.ConstantColumn(50); // Score
             });
 
-            // 3. Recent Activity Log
-            column.Item().Text("Recent Activity").FontSize(14).SemiBold();
-            column.Item().Table(table =>
+            table.Header(header =>
             {
-                table.ColumnsDefinition(columns =>
+                header.Cell().Background(_primaryColor).Padding(5).Text("#").FontColor(Colors.White).SemiBold();
+                header.Cell().Background(_primaryColor).Padding(5).Text("Name").FontColor(Colors.White).SemiBold();
+                header.Cell().Background(_primaryColor).Padding(5).Text("Role").FontColor(Colors.White).SemiBold();
+                if (showUnitColumn)
                 {
-                    columns.ConstantColumn(120); // Date
-                    columns.ConstantColumn(100); // Action
-                    columns.RelativeColumn();    // Unit
-                    columns.RelativeColumn();    // Details
-                });
-
-                table.Header(header =>
-                {
-                    header.Cell().BorderBottom(2).BorderColor(_primaryColor).PaddingBottom(5).Text("Date").SemiBold();
-                    header.Cell().BorderBottom(2).BorderColor(_primaryColor).PaddingBottom(5).Text("Action").SemiBold();
-                    header.Cell().BorderBottom(2).BorderColor(_primaryColor).PaddingBottom(5).Text("Unit").SemiBold();
-                    header.Cell().BorderBottom(2).BorderColor(_primaryColor).PaddingBottom(5).Text("Details").SemiBold();
-                });
-
-                foreach (var log in summary.RecentLogs)
-                {
-                    table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(log.Timestamp.ToString("yyyy-MM-dd HH:mm")).FontSize(10);
-                    table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(log.Action).FontSize(10);
-                    table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(log.UnitName ?? "").FontSize(10);
-                    table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(log.Details ?? "").FontSize(10);
+                    header.Cell().Background(_primaryColor).Padding(5).Text("Unit").FontColor(Colors.White).SemiBold();
                 }
+                header.Cell().Background(_primaryColor).Padding(5).AlignRight().Text("Tasks").FontColor(Colors.White).SemiBold();
+                header.Cell().Background(_primaryColor).Padding(5).AlignRight().Text("Events").FontColor(Colors.White).SemiBold();
+                header.Cell().Background(_primaryColor).Padding(5).AlignRight().Text("Score").FontColor(Colors.White).SemiBold();
             });
+
+            int rank = 1;
+            foreach (var score in scores.OrderByDescending(s => s.TotalScore))
+            {
+                string bg = rank % 2 == 0 ? Colors.White : _surfaceColor;
+                
+                table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).Text(rank.ToString());
+                table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).Text(score.UserName);
+                table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).Text(score.RoleName);
+                if (showUnitColumn)
+                {
+                    table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).Text(score.UnitName);
+                }
+                table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).AlignRight().Text(score.TasksDone.ToString());
+                table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).AlignRight().Text(score.EventsAttended.ToString());
+                table.Cell().Background(bg).BorderBottom(1).BorderColor(_borderColor).Padding(5).AlignRight().Text(score.TotalScore.ToString()).SemiBold();
+                
+                rank++;
+            }
+        });
+    }
+
+    private void ComposeRecentActivityLog(ColumnDescriptor column, UnitActivitySummaryDto summary)
+    {
+        column.Item().Text("Recent Activity").FontSize(14).SemiBold();
+        column.Item().Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.ConstantColumn(120); // Date
+                columns.ConstantColumn(100); // Action
+                columns.RelativeColumn();    // Unit
+                columns.RelativeColumn();    // Details
+            });
+
+            table.Header(header =>
+            {
+                header.Cell().BorderBottom(2).BorderColor(_primaryColor).PaddingBottom(5).Text("Date").SemiBold();
+                header.Cell().BorderBottom(2).BorderColor(_primaryColor).PaddingBottom(5).Text("Action").SemiBold();
+                header.Cell().BorderBottom(2).BorderColor(_primaryColor).PaddingBottom(5).Text("Unit").SemiBold();
+                header.Cell().BorderBottom(2).BorderColor(_primaryColor).PaddingBottom(5).Text("Details").SemiBold();
+            });
+
+            foreach (var log in summary.RecentLogs)
+            {
+                table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(log.Timestamp.ToString("yyyy-MM-dd HH:mm")).FontSize(10);
+                table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(log.Action).FontSize(10);
+                table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(log.UnitName ?? "").FontSize(10);
+                table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(log.Details ?? "").FontSize(10);
+            }
         });
     }
 
