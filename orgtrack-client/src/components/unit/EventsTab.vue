@@ -9,6 +9,7 @@ import {
   Clock, Users, ChevronDown, ChevronUp, CalendarDays, Plus, AlarmClock, Repeat, Trash2,
   CheckCircle2, XCircle, HelpCircle, Loader2, Calendar, X, Pencil
 } from 'lucide-vue-next';
+import SkeletonLoader from '../common/SkeletonLoader.vue';
 
 const props = defineProps<{
   unitId: string;
@@ -350,8 +351,24 @@ const handleDeleteEvent = async (event: EventDto) => {
     </div>
 
     <!-- Loading -->
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <Loader2 class="w-8 h-8 text-emerald-500 animate-spin" />
+    <div v-if="isLoading" class="space-y-4 py-4">
+      <div v-for="i in 3" :key="'skel-event-'+i" class="bg-bg border border-border rounded-xl p-4 flex gap-4">
+        <div class="flex-shrink-0 w-12 flex flex-col items-center justify-center gap-1">
+          <SkeletonLoader width="30px" height="12px" />
+          <SkeletonLoader width="40px" height="24px" />
+        </div>
+        <div class="flex-1 space-y-2">
+          <SkeletonLoader width="40%" height="16px" />
+          <SkeletonLoader width="60%" height="12px" />
+          <div class="flex gap-2 pt-2">
+            <SkeletonLoader width="100px" height="12px" />
+            <SkeletonLoader width="80px" height="12px" />
+          </div>
+        </div>
+        <div class="flex items-center">
+          <SkeletonLoader type="circular" width="24px" height="24px" />
+        </div>
+      </div>
     </div>
 
     <template v-else>

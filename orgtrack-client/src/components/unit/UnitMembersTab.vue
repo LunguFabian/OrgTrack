@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { api } from '../../api/axios';
 import { Mail, Shield, Calendar, UserMinus, Link2, Copy, Check, Clock, Users, ChevronsUp } from 'lucide-vue-next';
+import SkeletonLoader from '../common/SkeletonLoader.vue';
 import { inviteService } from '../../api/services/invite.service';
 import type { UnitMemberDto, InviteLinkCreatedDto } from '../../types/unit';
 import { useOrgStore } from '../../stores/orgStore';
@@ -246,7 +247,14 @@ const formatDate = (iso: string) =>
 
     <!-- Loading State -->
     <div v-if="isLoading" class="space-y-3">
-      <div v-for="i in 3" :key="i" class="h-16 bg-bg rounded-xl animate-pulse"></div>
+      <div v-for="i in 5" :key="'skel-member-'+i" class="flex items-center gap-4 p-4 rounded-xl border border-border bg-surface">
+        <SkeletonLoader type="circular" width="40px" height="40px" />
+        <div class="flex-1 space-y-2">
+          <SkeletonLoader width="150px" height="16px" />
+          <SkeletonLoader width="100px" height="12px" />
+        </div>
+        <SkeletonLoader width="80px" height="24px" class="rounded-full hidden sm:block" />
+      </div>
     </div>
 
     <!-- Empty State -->

@@ -8,7 +8,8 @@ public class AuthenticateUser(
     IUserRepository userRepository,
     IGoogleAuthService googleAuthService,
     ITokenService tokenService,
-    IRefreshTokenRepository refreshTokenRepository)
+    IRefreshTokenRepository refreshTokenRepository,
+    OrgTrack.Domain.Interfaces.IEmailService emailService)
 {
     private const int RefreshTokenExpirationDays = 30;
 
@@ -40,6 +41,13 @@ public class AuthenticateUser(
                 IsActive = true
             };
             await userRepository.AddAsync(user);
+
+            // Send welcome email asynchronously without blocking the login
+            _ = emailService.SendEmailAsync(
+                user.Email,
+                "Welcome to OrgTrack! 🚀",
+                OrgTrack.Application.Helpers.EmailTemplates.GetWelcomeEmail(user.FirstName, "http://localhost:5173")
+            );
         }
         else
         {

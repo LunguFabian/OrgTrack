@@ -1,7 +1,10 @@
 using System.Text;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using OrgTrack.Domain.Interfaces;
 using OrgTrack.Application.Interfaces;
 using OrgTrack.Application.UseCases;
 using OrgTrack.Infrastructure.Auth;
@@ -20,6 +23,19 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowCredentials());
 });
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("AuthLimiter", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0; // Fail instantly when limit is reached
+    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddDbContext<OrgTrackDbContext>(options =>
@@ -88,6 +104,7 @@ builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<IMessageRepository, MessageRepository>();
 builder.Services.AddScoped<MessageService>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<IEmailService, OrgTrack.Infrastructure.ExternalServices.SmtpEmailService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IRealtimeNotifier, OrgTrack.Api.Hubs.SignalRNotifier>();
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -96,6 +113,8 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHealthChecks()
+    .AddNpgSql(builder.Configuration.GetConnectionString("Default")!);
 
 var app = builder.Build();
 
@@ -116,11 +135,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<OrgTrackHub>("/hubs/orgtrack");
+app.MapHealthChecks("/health");
 
 await app.RunAsync();
 public partial class Program { }

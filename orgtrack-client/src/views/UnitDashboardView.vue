@@ -11,6 +11,7 @@ import AnalyticsTab from '../components/unit/AnalyticsTab.vue';
 import { Users, KanbanSquare, CalendarDays, BarChart, ArrowLeft, Settings, Globe, Building2, Layers, Shield, RefreshCw } from 'lucide-vue-next';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../api/axios';
+import SkeletonLoader from '../components/common/SkeletonLoader.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -100,11 +101,25 @@ const handleRoleUpdated = () => {
       Back to Organization
     </button>
 
-    <!-- Loading State -->
-    <div v-if="isLoading" class="flex justify-center py-20">
-      <div class="flex flex-col items-center gap-4">
-        <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-text-muted">Loading dashboard...</p>
+    <!-- Skeleton Loading State -->
+    <div v-if="isLoading" class="space-y-6">
+      <div class="bg-surface p-6 rounded-2xl border border-border shadow-sm">
+        <div class="flex items-start gap-4">
+          <SkeletonLoader type="circular" width="60px" height="60px" class="rounded-xl" />
+          <div class="space-y-2 flex-1">
+            <SkeletonLoader width="80px" height="16px" class="rounded-md" />
+            <SkeletonLoader width="250px" height="32px" />
+            <SkeletonLoader width="400px" height="16px" />
+          </div>
+        </div>
+      </div>
+      <!-- Tabs skeleton -->
+      <div class="flex gap-2 border-b border-border mb-6">
+        <SkeletonLoader v-for="i in 4" :key="i" width="100px" height="40px" class="rounded-t-lg" />
+      </div>
+      <!-- Content skeleton area -->
+      <div class="h-[500px] bg-surface/50 border border-border rounded-2xl p-6">
+        <SkeletonLoader width="100%" height="100%" class="rounded-xl opacity-50" />
       </div>
     </div>
 

@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Activity
 } from 'lucide-vue-next';
+import SkeletonLoader from '../components/common/SkeletonLoader.vue';
 import { Bar, Doughnut } from 'vue-chartjs';
 import { 
   Chart as ChartJS, 
@@ -155,11 +156,26 @@ const membersChartData = computed(() => {
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="isLoading" class="flex justify-center py-20">
-      <div class="flex flex-col items-center gap-4">
-        <Loader2 class="w-10 h-10 text-blue-500 animate-spin" />
-        <p class="text-text-muted">Analyzing national data...</p>
+    <!-- Skeleton Loading State -->
+    <div v-if="isLoading" class="space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div v-for="i in 3" :key="'skel-stat-'+i" class="bg-surface p-6 rounded-2xl border border-border shadow-sm flex items-center gap-5">
+          <SkeletonLoader type="circular" width="56px" height="56px" class="rounded-xl" />
+          <div class="space-y-2 flex-1">
+            <SkeletonLoader width="120px" height="12px" />
+            <SkeletonLoader width="60px" height="32px" />
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-surface p-6 rounded-2xl border border-border">
+          <SkeletonLoader width="200px" height="20px" class="mb-6" />
+          <SkeletonLoader width="100%" height="320px" />
+        </div>
+        <div class="bg-surface p-6 rounded-2xl border border-border">
+          <SkeletonLoader width="180px" height="20px" class="mb-6" />
+          <SkeletonLoader type="circular" width="250px" height="250px" class="mx-auto" />
+        </div>
       </div>
     </div>
     

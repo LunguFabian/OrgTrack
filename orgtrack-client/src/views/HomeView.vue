@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useAuthStore } from '../stores/authStore';
+import SkeletonLoader from '../components/common/SkeletonLoader.vue';
 import { organizationService } from '../api/services/organization.service';
 import { tasksService } from '../api/services/tasks.service';
 import { eventsService } from '../api/services/events.service';
@@ -152,11 +153,55 @@ const greeting = computed(() => {
       <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-blue-500/5 rounded-full blur-2xl"></div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="isLoading" class="flex justify-center py-20">
-      <div class="flex flex-col items-center gap-4">
-        <Loader2 class="w-10 h-10 text-emerald-500 animate-spin" />
-        <p class="text-text-muted">Loading your dashboard...</p>
+    <!-- Skeleton Loading State -->
+    <div v-if="isLoading" class="space-y-6">
+      <!-- Skeleton Stat Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div v-for="i in 4" :key="i" class="p-5 rounded-2xl border border-border bg-surface flex items-center gap-4">
+          <SkeletonLoader type="circular" width="44px" height="44px" class="rounded-xl" />
+          <div class="space-y-2 flex-1">
+            <SkeletonLoader width="60%" height="12px" />
+            <SkeletonLoader width="40%" height="24px" />
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <!-- Skeleton Upcoming Events -->
+        <div class="lg:col-span-3 space-y-4">
+          <div class="flex items-center justify-between">
+            <SkeletonLoader width="150px" height="24px" />
+            <SkeletonLoader width="80px" height="16px" />
+          </div>
+          <div class="bg-surface rounded-2xl border border-border p-4 space-y-4">
+            <div v-for="i in 3" :key="i" class="flex items-start justify-between gap-3">
+              <div class="space-y-2 flex-1">
+                <SkeletonLoader width="70%" height="16px" />
+                <SkeletonLoader width="40%" height="12px" />
+              </div>
+              <SkeletonLoader width="60px" height="16px" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Skeleton Right Column -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <SkeletonLoader width="160px" height="24px" />
+              <SkeletonLoader width="70px" height="16px" />
+            </div>
+            <div class="bg-surface rounded-2xl border border-border p-4 space-y-4">
+              <div v-for="i in 2" :key="i" class="flex items-start justify-between gap-3">
+                <div class="space-y-2 flex-1">
+                  <SkeletonLoader width="80%" height="16px" />
+                  <SkeletonLoader width="50%" height="12px" />
+                </div>
+                <SkeletonLoader width="60px" height="16px" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

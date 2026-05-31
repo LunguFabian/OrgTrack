@@ -16,6 +16,7 @@ public class AuthenticateUserTests
     private readonly Mock<IGoogleAuthService> _googleAuthServiceMock;
     private readonly Mock<ITokenService> _tokenServiceMock;
     private readonly Mock<IRefreshTokenRepository> _refreshTokenRepositoryMock;
+    private readonly Mock<OrgTrack.Domain.Interfaces.IEmailService> _emailServiceMock;
 
     public AuthenticateUserTests()
     {
@@ -23,12 +24,14 @@ public class AuthenticateUserTests
         _googleAuthServiceMock = new Mock<IGoogleAuthService>();
         _tokenServiceMock = new Mock<ITokenService>();
         _refreshTokenRepositoryMock = new Mock<IRefreshTokenRepository>();
+        _emailServiceMock = new Mock<OrgTrack.Domain.Interfaces.IEmailService>();
         
         _authenticateUser = new AuthenticateUser(
             _userRepositoryMock.Object,
             _googleAuthServiceMock.Object,
             _tokenServiceMock.Object,
-            _refreshTokenRepositoryMock.Object
+            _refreshTokenRepositoryMock.Object,
+            _emailServiceMock.Object
         );
     }
 

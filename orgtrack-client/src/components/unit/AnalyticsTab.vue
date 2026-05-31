@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { analyticsService, type UnitActivitySummaryDto, type MemberActivityScoreDto } from '../../api/services/analytics.service';
-import type { UnitMemberDto } from '../../types/unit';
 import { BarChart, Activity, Users, CalendarCheck, CheckSquare, Trophy, AlertCircle, FileText, Table as TableIcon } from 'lucide-vue-next';
+import SkeletonLoader from '../common/SkeletonLoader.vue';
 import { Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js';
 
@@ -134,8 +134,28 @@ const downloadReport = async (format: 'pdf' | 'excel') => {
       </div>
     </div>
 
-    <div v-if="isLoading" class="flex justify-center py-12">
-      <div class="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+    <!-- Skeleton Loading State -->
+    <div v-if="isLoading" class="space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div v-for="i in 3" :key="'skel-stat-'+i" class="bg-surface border border-border p-5 rounded-2xl space-y-3">
+          <SkeletonLoader width="120px" height="16px" />
+          <SkeletonLoader width="40px" height="32px" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1 bg-surface border border-border rounded-2xl p-5">
+          <SkeletonLoader width="140px" height="16px" class="mb-4" />
+          <SkeletonLoader width="100%" height="250px" class="rounded-xl" />
+        </div>
+        <div class="lg:col-span-2 bg-surface border border-border rounded-2xl p-5 space-y-4">
+          <SkeletonLoader width="140px" height="16px" class="mb-4" />
+          <div v-for="i in 4" :key="'skel-lead-'+i" class="flex items-center gap-4">
+            <SkeletonLoader type="circular" width="32px" height="32px" />
+            <SkeletonLoader width="200px" height="16px" class="flex-1" />
+            <SkeletonLoader width="60px" height="16px" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="error" class="flex flex-col items-center justify-center py-12 text-center bg-red-500/5 rounded-2xl border border-red-500/10">
@@ -204,9 +224,10 @@ const downloadReport = async (format: 'pdf' | 'excel') => {
               >
                 <div class="flex items-center gap-4">
                   <div class="w-8 h-8 rounded-full bg-border flex items-center justify-center text-xs font-bold"
-                       :class="index === 0 ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' : 
-                               index === 1 ? 'bg-gray-400/20 text-text-muted border border-gray-400/30' : 
-                               index === 2 ? 'bg-amber-700/20 text-amber-600 border border-amber-700/30' : 'text-text-muted'">
+                       :class="index === 0 ? 'bg-gradient-to-r from-yellow-500/20 via-yellow-200/25 to-yellow-600/20 text-yellow-300 border border-yellow-300/40 shadow-[0_0_10px_rgba(253,224,71,0.25)]' :
+                               index === 1 ? 'bg-gradient-to-r from-slate-400/20 via-slate-200/25 to-slate-500/20 text-slate-200 border border-slate-300/40 shadow-[0_0_10px_rgba(226,232,240,0.25)]' :
+                               index === 2 ? 'bg-gradient-to-r from-amber-700/20 via-orange-300/25 to-amber-800/20 text-amber-400 border border-amber-500/40 shadow-[0_0_10px_rgba(251,146,60,0.22)]' :
+                               'text-text-muted'">
                     #{{ index + 1 }}
                   </div>
                   <div>

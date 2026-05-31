@@ -4,6 +4,7 @@ import { useOrgStore } from '../stores/orgStore';
 import OrgTreeNode from '../components/organization/OrgTreeNode.vue';
 import CreateUnitModal from '../components/organization/CreateUnitModal.vue';
 import { Network, Plus } from 'lucide-vue-next';
+import SkeletonLoader from '../components/common/SkeletonLoader.vue';
 
 const orgStore = useOrgStore();
 const isModalOpen = ref(false);
@@ -45,11 +46,12 @@ const handleAddChild = (payload: { id: string | null; type?: string }) => {
       </button>
     </div>
 
-    <!-- Loading state -->
-    <div v-if="orgStore.isLoading" class="flex justify-center py-20">
-      <div class="animate-pulse flex flex-col items-center gap-4">
-        <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-text-muted">Loading organization tree...</p>
+    <!-- Skeleton Loading state -->
+    <div v-if="orgStore.isLoading" class="space-y-4 pt-4 pl-2">
+      <div v-for="i in 3" :key="'skel-node-'+i" class="flex items-center gap-3 bg-surface border border-border p-3 rounded-xl ml-[${(i-1)*20}px]">
+        <SkeletonLoader type="circular" width="32px" height="32px" class="rounded-lg" />
+        <SkeletonLoader width="150px" height="16px" />
+        <SkeletonLoader width="60px" height="20px" class="rounded-md ml-auto" />
       </div>
     </div>
 

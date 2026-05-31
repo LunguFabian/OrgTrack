@@ -9,6 +9,7 @@ import { useAuthStore } from '../../stores/authStore';
 import type { TaskDto, UnitMemberDto, WorkloadScoreDto } from '../../types/unit';
 import type { OrganizationUnitDto } from '../../types/organization';
 import KanbanCard from './KanbanCard.vue';
+import SkeletonLoader from '../common/SkeletonLoader.vue';
 
 const toastStore = useToastStore();
 const authStore = useAuthStore();
@@ -432,10 +433,23 @@ const submitTask = async () => {
     </div>
 
     <!-- Loading State -->
-    <div v-if="isLoading" class="flex-1 flex items-center justify-center">
-      <div class="flex flex-col items-center gap-3">
-        <div class="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <span class="text-text-muted text-sm font-medium">Loading board...</span>
+    <div v-if="isLoading" class="flex gap-6 h-full overflow-hidden pb-4">
+      <div v-for="i in 4" :key="'col-skel-'+i" class="flex-shrink-0 w-[300px] flex flex-col rounded-2xl border border-border bg-surface/50">
+        <div class="p-4 border-b border-border/50 flex items-center gap-2">
+          <SkeletonLoader type="circular" width="16px" height="16px" />
+          <SkeletonLoader width="100px" height="20px" />
+        </div>
+        <div class="p-3 flex-1 space-y-3">
+          <div v-for="j in (i === 1 ? 3 : i === 2 ? 2 : 1)" :key="'card-skel-'+i+'-'+j" class="bg-surface border border-border p-3 rounded-xl space-y-3">
+            <SkeletonLoader width="80%" height="16px" />
+            <SkeletonLoader width="100%" height="12px" />
+            <SkeletonLoader width="60%" height="12px" />
+            <div class="flex justify-between items-center pt-2">
+              <SkeletonLoader width="50px" height="20px" class="rounded-md" />
+              <SkeletonLoader type="circular" width="24px" height="24px" />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

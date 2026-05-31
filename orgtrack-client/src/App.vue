@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import ToastContainer from './components/ui/ToastContainer.vue';
+import ErrorBoundary from './components/common/ErrorBoundary.vue';
 </script>
 
 <template>
   <ToastContainer />
-  <router-view />
+  <ErrorBoundary>
+    <router-view />
+  </ErrorBoundary>
 </template>
 
 <style scoped>

@@ -8,6 +8,7 @@ namespace OrgTrack.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("AuthLimiter")]
 public class DevAuthController(
     IUserRepository userRepository,
     ITokenService tokenService,

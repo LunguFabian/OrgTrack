@@ -9,6 +9,7 @@ namespace OrgTrack.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("AuthLimiter")]
 public class AuthController(
     AuthenticateUser authenticateUser) : ControllerBase
 {
