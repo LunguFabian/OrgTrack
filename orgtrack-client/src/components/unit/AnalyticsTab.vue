@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { analyticsService, type UnitActivitySummaryDto, type MemberActivityScoreDto } from '../../api/services/analytics.service';
+import type { UnitMemberDto } from '../../types/unit';
 import { BarChart, Activity, Users, CalendarCheck, CheckSquare, Trophy, AlertCircle, FileText, Table as TableIcon } from 'lucide-vue-next';
 import SkeletonLoader from '../common/SkeletonLoader.vue';
 import { Bar } from 'vue-chartjs';
@@ -16,7 +17,7 @@ const props = defineProps<{
 
 const isLoading = ref(true);
 const error = ref('');
-type EnhancedScoreDto = MemberActivityScoreDto & { unitName: string };
+type EnhancedScoreDto = MemberActivityScoreDto & { unitName?: string; roleName?: string };
 const summary = ref<UnitActivitySummaryDto | null>(null);
 const memberScores = ref<EnhancedScoreDto[]>([]);
 const isDownloading = ref(false);
@@ -32,7 +33,14 @@ const fetchAnalytics = async () => {
     const scores = await analyticsService.getLeaderboard(props.unitId);
     
     // The backend already handles the logic for UnitName and Top 5 limiting
-    memberScores.value = scores as EnhancedScoreDto[];
+    memberScores.value = scores.map(s => {
+      const member = props.members.find(m => m.userId === s.userId);
+      return {
+        ...s,
+        unitName: s.unitName || '',
+        roleName: member?.roleName || 'Member'
+      };
+    });
   } catch (err: any) {
     error.value = 'Failed to load analytics data. You might not have permission.';
     console.error(err);

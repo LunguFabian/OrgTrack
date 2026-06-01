@@ -18,7 +18,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy => policy
-            .WithOrigins("http://localhost:5173", "http://localhost:5174") // Adresele standard pentru Vite
+            .WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://localhost") // Adresele standard pentru Vite + Docker
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials());
@@ -123,6 +123,9 @@ QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<OrgTrackDbContext>();
+    // Apply pending migrations automatically on startup
+    await dbContext.Database.MigrateAsync();
+    
     await DataSeeder.SeedDataAsync(dbContext, app.Environment.IsDevelopment());
 }
 app.UseMiddleware<OrgTrack.Api.Middleware.GlobalExceptionMiddleware>();

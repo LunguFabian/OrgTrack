@@ -9,7 +9,7 @@ import type { OrganizationUnitDto } from '../types/organization';
 import type { TaskDto, EventDto } from '../types/unit';
 import {
   CheckCircle2, Clock, AlertCircle, ListTodo, ChevronRight,
-  Building2, Layers, Shield, Loader2, Sparkles, ArrowUpRight,
+  Building2, Layers, Shield, Sparkles, ArrowUpRight,
   CalendarDays, Repeat
 } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';

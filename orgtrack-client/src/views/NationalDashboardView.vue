@@ -8,7 +8,6 @@ import {
   Users, 
   CheckCircle2, 
   CalendarDays,
-  Loader2,
   TrendingUp,
   Activity
 } from 'lucide-vue-next';
