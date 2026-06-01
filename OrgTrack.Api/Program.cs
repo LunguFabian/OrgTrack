@@ -18,7 +18,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy => policy
-            .WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://localhost") // Adresele standard pentru Vite + Docker
+            .WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://localhost", "http://165.232.79.84:3000")
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials());
