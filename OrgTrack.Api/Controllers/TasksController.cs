@@ -77,6 +77,10 @@ public class TasksController(
         }
         if (!hasManagePermission)
         {
+            if (request.AssigneeId.HasValue && request.AssigneeId.Value != userId)
+            {
+                return BadRequest(new { error = "Only a leader (TL/VP/LCP) can assign tasks to other members. You can only create tasks for yourself." });
+            }
             request = request with { AssigneeId = userId };
         }
 

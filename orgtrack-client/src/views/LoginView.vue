@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '../stores/authStore';
-import { LogIn, Code2 } from 'lucide-vue-next';
+import { LogIn } from 'lucide-vue-next';
 
 const authStore = useAuthStore();
 const error = ref('');
@@ -82,16 +82,6 @@ onMounted(() => {
         <p class="text-sm text-text-muted animate-pulse">Signing you in...</p>
       </div>
 
-      <!-- Developer Login link -->
-      <div class="mt-8 pt-6 border-t border-border text-center">
-        <router-link 
-          to="/developer-login"
-          class="inline-flex items-center gap-2 text-sm text-text-muted hover:text-emerald-400 transition-colors"
-        >
-          <Code2 class="w-4 h-4" />
-          Developer Login
-        </router-link>
-      </div>
     </div>
   </div>
 </template>

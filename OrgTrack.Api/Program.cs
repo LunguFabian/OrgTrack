@@ -126,14 +126,14 @@ using (var scope = app.Services.CreateScope())
     // Apply pending migrations automatically on startup
     await dbContext.Database.MigrateAsync();
     
-    await DataSeeder.SeedDataAsync(dbContext, app.Environment.IsDevelopment());
+    await DataSeeder.SeedDataAsync(dbContext, true);
 }
 app.UseMiddleware<OrgTrack.Api.Middleware.GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(); // Accesibil la /swagger
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();

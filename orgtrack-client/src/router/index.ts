@@ -10,11 +10,6 @@ const router = createRouter({
       component: () => import('../views/LoginView.vue')
     },
     {
-      path: '/developer-login',
-      name: 'developer-login',
-      component: () => import('../views/DevLoginView.vue')
-    },
-    {
       path: '/invite/:token',
       name: 'invite',
       component: () => import('../views/InviteView.vue')
@@ -84,7 +79,7 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return '/login';
   }
-  if ((to.path === '/login' || to.path === '/developer-login') && authStore.isAuthenticated) {
+  if (to.path === '/login' && authStore.isAuthenticated) {
     return '/';
   }
 });

@@ -35,11 +35,6 @@ export const useAuthStore = defineStore('auth', () => {
     setAuthData(response.data);
   }
 
-  async function devLogin(email: string) {
-    const response = await api.post<AuthResponse>('/auth/dev-login', { email });
-    setAuthData(response.data);
-  }
-
   function logout() {
     clearAuthData();
     window.location.href = '/login';
@@ -53,7 +48,6 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuthData,
     loadUserFromStorage,
     loginWithGoogle,
-    devLogin,
     logout
   };
 });

@@ -25,6 +25,7 @@ services:
       dockerfile: Dockerfile
     container_name: orgtrack_api
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Default=Host=db;Database=orgtrack;Username=postgres;Password=${POSTGRES_PASSWORD}
       - Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
       - Jwt__Secret=${JWT_SECRET}

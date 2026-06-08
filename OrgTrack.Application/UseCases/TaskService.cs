@@ -92,6 +92,14 @@ public class TaskService(
         {
             throw new InvalidOperationException("Tasks marked as 'Done' can no longer be modified.");
         }
+        
+        if (newStatus == TaskStatus.Done && task.CreatorId != requestingUserId)
+        {
+            if (task.AssigneeId == requestingUserId)
+            {
+                throw new InvalidOperationException("Only the creator of the task can approve and mark it as 'Done'. Please move it to 'Review' instead.");
+            }
+        }
 
         if (!hasManagePermission)
         {
