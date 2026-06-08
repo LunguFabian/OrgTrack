@@ -30,8 +30,6 @@ services:
       - Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
       - Jwt__Secret=${JWT_SECRET}
       - Smtp__Password=${SMTP_PASSWORD}
-    ports:
-      - "5106:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -45,11 +43,26 @@ services:
         - VITE_API_URL=${VITE_API_URL}
         - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     container_name: orgtrack_client
-    ports:
-      - "3000:80"
     depends_on:
       - api
     restart: unless-stopped
 
+  caddy:
+    image: caddy:2.7-alpine
+    container_name: orgtrack_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - client
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

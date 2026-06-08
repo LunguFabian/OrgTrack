@@ -1,0 +1,16 @@
+orgtrack.duckdns.org {
+    # 1. Reverse proxy for SignalR Websockets
+    handle /hubs/* {
+        reverse_proxy api:8080
+    }
+
+    # 2. Reverse proxy for the .NET API
+    handle /api/* {
+        reverse_proxy api:8080
+    }
+
+    # 3. Serve the Vue.js SPA frontend for all other routes
+    handle {
+        reverse_proxy client:80
+    }
+}
