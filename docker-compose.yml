@@ -27,8 +27,10 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Default=Host=db;Database=orgtrack;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - Google__ClientId=${VITE_GOOGLE_CLIENT_ID}
       - Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
       - Jwt__Secret=${JWT_SECRET}
+      - Smtp__Username=${SMTP_USERNAME}
       - Smtp__Password=${SMTP_PASSWORD}
     depends_on:
       db:
