@@ -9,7 +9,6 @@ using OrgTrack.Application.Interfaces;
 using OrgTrack.Application.UseCases;
 using OrgTrack.Infrastructure.Auth;
 using OrgTrack.Infrastructure.Persistence;
-using OrgTrack.Infrastructure.Repositories;
 using OrgTrack.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);

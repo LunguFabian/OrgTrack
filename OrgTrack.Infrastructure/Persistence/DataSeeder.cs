@@ -241,7 +241,16 @@ public static class DataSeeder
             new TaskItem { Title = "Legal Compliance Check", Description = "Verify GDPR documents.", Priority = TaskPriority.High, Status = TaskStatus.Done, OrganizationUnitId = audFinBucharest.Id, AssigneeId = memAud2.Id, CreatorId = vpFinBucharest.Id },
             
             new TaskItem { Title = "National Report", Description = "Consolidate national metrics for global.", Priority = TaskPriority.High, Status = TaskStatus.InProgress, OrganizationUnitId = romania.Id, AssigneeId = admin.Id, CreatorId = admin.Id },
-            new TaskItem { Title = "Setup Server Infrastructure", Description = "Deploy docker containers.", Priority = TaskPriority.High, Status = TaskStatus.Done, OrganizationUnitId = itCluj.Id, AssigneeId = vpItCluj.Id, CreatorId = lcpCluj.Id }
+            new TaskItem { Title = "Setup Server Infrastructure", Description = "Deploy docker containers.", Priority = TaskPriority.High, Status = TaskStatus.Done, OrganizationUnitId = itCluj.Id, AssigneeId = vpItCluj.Id, CreatorId = lcpCluj.Id },
+
+            // BURNOUT TARGET: Andrei Radu (memB2c1)
+            // Baseline tasks (fast completion)
+            new TaskItem { Title = "Old Task 1", Description = "Baseline", Priority = TaskPriority.Low, Status = TaskStatus.Done, OrganizationUnitId = b2cIasi.Id, AssigneeId = memB2c1.Id, CreatorId = tlB2cIasi.Id, CreatedAt = DateTime.UtcNow.AddDays(-40), UpdatedAt = DateTime.UtcNow.AddDays(-39) },
+            new TaskItem { Title = "Old Task 2", Description = "Baseline", Priority = TaskPriority.Medium, Status = TaskStatus.Done, OrganizationUnitId = b2cIasi.Id, AssigneeId = memB2c1.Id, CreatorId = tlB2cIasi.Id, CreatedAt = DateTime.UtcNow.AddDays(-35), UpdatedAt = DateTime.UtcNow.AddDays(-34) },
+            // Recent slow tasks
+            new TaskItem { Title = "Burnout Task 1", Description = "Late & Slow", Priority = TaskPriority.High, Status = TaskStatus.Done, OrganizationUnitId = b2cIasi.Id, AssigneeId = memB2c1.Id, CreatorId = tlB2cIasi.Id, CreatedAt = DateTime.UtcNow.AddDays(-10), UpdatedAt = DateTime.UtcNow.AddDays(-2), Deadline = DateTime.UtcNow.AddDays(-5) },
+            new TaskItem { Title = "Burnout Task 2", Description = "Late", Priority = TaskPriority.High, Status = TaskStatus.InProgress, OrganizationUnitId = b2cIasi.Id, AssigneeId = memB2c1.Id, CreatorId = tlB2cIasi.Id, CreatedAt = DateTime.UtcNow.AddDays(-5), Deadline = DateTime.UtcNow.AddDays(-1) },
+            new TaskItem { Title = "Burnout Task 3", Description = "Late", Priority = TaskPriority.High, Status = TaskStatus.ToDo, OrganizationUnitId = b2cIasi.Id, AssigneeId = memB2c1.Id, CreatorId = tlB2cIasi.Id, CreatedAt = DateTime.UtcNow.AddDays(-5), Deadline = DateTime.UtcNow.AddDays(-1) }
         );
         
         // EVENTS
@@ -269,7 +278,16 @@ public static class DataSeeder
         ev6.InvitedUnits.Add(new EventInvitedUnit { OrganizationUnitId = iasi.Id }); 
         ev6.InvitedUsers.Add(new EventInvitedUser { UserId = admin.Id }); 
 
-        context.Events.AddRange(ev0, ev1, ev2, ev3, ev4, ev5, ev6);
+        // BURNOUT TARGET EVENTS (Absenteeism Streak)
+        var evPast1 = new Event { Title = "B2C Team Sync", Description = "Weekly", StartDate = DateTime.UtcNow.AddDays(-14), EndDate = DateTime.UtcNow.AddDays(-14).AddHours(1), OrganizationUnitId = b2cIasi.Id };
+        var evPast2 = new Event { Title = "MKT Strategy", Description = "Monthly", StartDate = DateTime.UtcNow.AddDays(-7), EndDate = DateTime.UtcNow.AddDays(-7).AddHours(2), OrganizationUnitId = mktIasi.Id };
+        var evPast3 = new Event { Title = "Emergency Meeting", Description = "Urgent", StartDate = DateTime.UtcNow.AddDays(-2), EndDate = DateTime.UtcNow.AddDays(-2).AddHours(1), OrganizationUnitId = b2cIasi.Id };
+        
+        evPast1.InvitedUnits.Add(new EventInvitedUnit { OrganizationUnitId = b2cIasi.Id });
+        evPast2.InvitedUnits.Add(new EventInvitedUnit { OrganizationUnitId = mktIasi.Id });
+        evPast3.InvitedUnits.Add(new EventInvitedUnit { OrganizationUnitId = b2cIasi.Id });
+
+        context.Events.AddRange(ev0, ev1, ev2, ev3, ev4, ev5, ev6, evPast1, evPast2, evPast3);
         await context.SaveChangesAsync();
 
         // RSVPS
@@ -287,7 +305,12 @@ public static class DataSeeder
 
             new EventRsvp { EventId = ev2.Id, UserId = lcpIasi.Id, Status = PresenceStatus.Present },
             new EventRsvp { EventId = ev2.Id, UserId = lcpBucharest.Id, Status = PresenceStatus.Present },
-            new EventRsvp { EventId = ev2.Id, UserId = lcpCluj.Id, Status = PresenceStatus.Present }
+            new EventRsvp { EventId = ev2.Id, UserId = lcpCluj.Id, Status = PresenceStatus.Present },
+
+            // BURNOUT TARGET RSVPS
+            new EventRsvp { EventId = evPast1.Id, UserId = memB2c1.Id, Status = PresenceStatus.Absent },
+            new EventRsvp { EventId = evPast2.Id, UserId = memB2c1.Id, Status = PresenceStatus.Absent },
+            new EventRsvp { EventId = evPast3.Id, UserId = memB2c1.Id, Status = PresenceStatus.Absent }
         );
         await context.SaveChangesAsync();
 
@@ -311,7 +334,14 @@ public static class DataSeeder
             new ActivityLog { UserId = admin.Id, OrganizationUnitId = romania.Id, Action = "EventCreated", EntityType = "Event", Details = "Scheduled National Conference" },
             
             new ActivityLog { UserId = vpItCluj.Id, OrganizationUnitId = itCluj.Id, Action = "TaskDone", EntityType = "Task", Details = "Setup server successfully" },
-            new ActivityLog { UserId = lcpCluj.Id, OrganizationUnitId = cluj.Id, Action = "UserJoined", EntityType = "User", Details = "Elected as LCP" }
+            new ActivityLog { UserId = lcpCluj.Id, OrganizationUnitId = cluj.Id, Action = "UserJoined", EntityType = "User", Details = "Elected as LCP" },
+
+            // BURNOUT TARGET CHURN (Frustration Index)
+            new ActivityLog { UserId = memB2c1.Id, OrganizationUnitId = b2cIasi.Id, Action = "Status changed:", EntityType = "Task", Details = "Burnout Task 2 changed to InProgress", CreatedAt = DateTime.UtcNow.AddDays(-4) },
+            new ActivityLog { UserId = memB2c1.Id, OrganizationUnitId = b2cIasi.Id, Action = "Status changed:", EntityType = "Task", Details = "Burnout Task 2 changed to ToDo", CreatedAt = DateTime.UtcNow.AddDays(-3) },
+            new ActivityLog { UserId = memB2c1.Id, OrganizationUnitId = b2cIasi.Id, Action = "Status changed:", EntityType = "Task", Details = "Burnout Task 2 changed to InProgress", CreatedAt = DateTime.UtcNow.AddDays(-2) },
+            new ActivityLog { UserId = memB2c1.Id, OrganizationUnitId = b2cIasi.Id, Action = "Status changed:", EntityType = "Task", Details = "Burnout Task 2 changed to ToDo", CreatedAt = DateTime.UtcNow.AddDays(-1) },
+            new ActivityLog { UserId = memB2c1.Id, OrganizationUnitId = b2cIasi.Id, Action = "Status changed:", EntityType = "Task", Details = "Burnout Task 2 changed to InProgress", CreatedAt = DateTime.UtcNow }
         );
         await context.SaveChangesAsync();
 

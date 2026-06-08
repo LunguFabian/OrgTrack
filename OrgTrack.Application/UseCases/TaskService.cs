@@ -284,154 +284,336 @@ public class TaskService(
         );
     }
 
+    // ──────────────────────────────────────────────────────────────
+    //  WORKLOAD RECOMMENDATION ALGORITHM
+    //  8-Factor Weighted Scoring Model with Z-Score Normalization
+    //
+    //  Factors:
+    //   W  Current Workload        (↑ = worse)   weight 0.25
+    //   V  Avg Completion Time     (↑ = worse)   weight 0.15
+    //   T  Throughput              (↑ = better)  weight 0.10
+    //   A  Availability            (↑ = better)  weight 0.10
+    //   C  Complexity Load         (↑ = worse)   weight 0.08
+    //   R  Reliability             (↑ = better)  weight 0.12
+    //   D  Overdue Pressure        (↑ = worse)   weight 0.10
+    //   X  Cross-Unit Load         (↑ = worse)   weight 0.10
+    //
+    //  Formula:
+    //   S = 0.25·z(W) + 0.15·z(V) − 0.10·z(T) − 0.10·z(A)
+    //     + 0.08·z(C) − 0.12·z(R) + 0.10·z(D) + 0.10·z(X)
+    //
+    //  Lower S → better candidate for task assignment.
+    // ──────────────────────────────────────────────────────────────
+
+    private const double WeightWorkload       = 0.25;
+    private const double WeightCompletionTime = 0.15;
+    private const double WeightThroughput     = 0.10;
+    private const double WeightAvailability   = 0.10;
+    private const double WeightComplexity     = 0.08;
+    private const double WeightReliability    = 0.12;
+    private const double WeightOverdue        = 0.10;
+    private const double WeightCrossUnit      = 0.10;
+
     public async Task<List<WorkloadScoreDto>> GetWorkloadRecommendationAsync(Guid unitId)
     {
         var members = await unitRepository.GetMembersAsync(unitId);
         if (members == null || !members.Any()) return new List<WorkloadScoreDto>();
 
-        var allTasks = await taskRepository.GetByUnitIdAsync(unitId);
-        var tasksList = allTasks.ToList();
+        var unitTasks = (await taskRepository.GetByUnitIdAsync(unitId)).ToList();
 
-        var dtos = CalculateRawScores(members, tasksList);
-        
-        FillMissingVelocityWithAverage(dtos);
+        // Pre-fetch cross-unit tasks for each member (single query per member)
+        var crossUnitData = new Dictionary<Guid, int>();
+        foreach (var member in members)
+        {
+            var allUserTasks = (await taskRepository.GetByAssigneeIdAsync(member.UserId)).ToList();
+            int activeInOtherUnits = allUserTasks.Count(t =>
+                t.OrganizationUnitId != unitId &&
+                (t.Status == TaskStatus.ToDo || t.Status == TaskStatus.InProgress || t.Status == TaskStatus.WaitingForApproval));
+            crossUnitData[member.UserId] = activeInOtherUnits;
+        }
 
-        ApplyNormalizationAndScoring(dtos);
+        var dtos = CalculateRawScores(members, unitTasks, crossUnitData);
+        FillMissingValues(dtos);
+        ApplyZScoreNormalizationAndScoring(dtos);
 
-        return dtos.OrderBy(d => d.FinalScore).ToList();
+        // Assign ranks after sorting
+        var sorted = dtos.OrderBy(d => d.FinalScore).ToList();
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            sorted[i] = sorted[i] with { Rank = i + 1 };
+        }
+
+        return sorted;
     }
 
-    private static List<WorkloadScoreDto> CalculateRawScores(IEnumerable<UserUnitRole> members, List<TaskItem> tasksList)
+    private static List<WorkloadScoreDto> CalculateRawScores(
+        IEnumerable<UserUnitRole> members,
+        List<TaskItem> unitTasks,
+        Dictionary<Guid, int> crossUnitData)
     {
         var dtos = new List<WorkloadScoreDto>();
         var now = DateTime.UtcNow;
         var thirtyDaysAgo = now.AddDays(-30);
+        var sixtyDaysAgo = now.AddDays(-60);
 
         foreach (var member in members)
         {
-            var userTasks = tasksList.Where(t => t.AssigneeId == member.UserId).ToList();
+            var userTasks = unitTasks.Where(t => t.AssigneeId == member.UserId).ToList();
 
-            double currentWorkloadRaw = CalculateCurrentWorkload(userTasks, now, out int subtasksComplexityRaw);
-            double velocityDaysRaw = CalculateVelocity(userTasks, thirtyDaysAgo);
-            int affinityRaw = userTasks.Count(t => t.Status == TaskStatus.Done && t.UpdatedAt >= thirtyDaysAgo);
-            int daysSinceLastAssignmentRaw = CalculateIdleTime(userTasks, now);
+            double workloadRaw = CalculateCurrentWorkload(userTasks, now, out int complexityRaw);
+            double avgCompletionTimeRaw = CalculateAvgCompletionTime(userTasks, sixtyDaysAgo);
+            int throughputRaw = userTasks.Count(t => t.Status == TaskStatus.Done && t.UpdatedAt >= thirtyDaysAgo);
+            int availabilityRaw = CalculateAvailability(userTasks, now);
+            double reliabilityRaw = CalculateReliability(userTasks);
+            double overduePressureRaw = CalculateOverduePressure(userTasks, now);
+            int crossUnitRaw = crossUnitData.GetValueOrDefault(member.UserId, 0);
 
             dtos.Add(new WorkloadScoreDto(
                 member.UserId,
                 $"{member.User?.FirstName} {member.User?.LastName}".Trim(),
                 member.User?.PictureUrl,
-                0, // Final score calculated later
-                currentWorkloadRaw,
-                velocityDaysRaw,
-                affinityRaw,
-                daysSinceLastAssignmentRaw,
-                subtasksComplexityRaw
+                0,  // Rank assigned after sorting
+                0,  // FinalScore calculated after normalization
+                workloadRaw,
+                avgCompletionTimeRaw,
+                throughputRaw,
+                availabilityRaw,
+                complexityRaw,
+                reliabilityRaw,
+                overduePressureRaw,
+                crossUnitRaw
             ));
         }
+
         return dtos;
     }
 
-    private static double CalculateCurrentWorkload(List<TaskItem> userTasks, DateTime now, out int subtasksComplexityRaw)
+    /// <summary>
+    /// Factor W — Current Workload.
+    /// Sums priority × status_factor × deadline_multiplier for every active task.
+    /// Now includes WaitingForApproval and uses a gradient deadline multiplier.
+    /// </summary>
+    private static double CalculateCurrentWorkload(List<TaskItem> userTasks, DateTime now, out int complexityLoadRaw)
     {
-        double currentWorkloadRaw = 0;
-        subtasksComplexityRaw = 0;
-        var activeTasks = userTasks.Where(t => t.Status == TaskStatus.ToDo || t.Status == TaskStatus.InProgress).ToList();
+        double workload = 0;
+        complexityLoadRaw = 0;
+
+        var activeTasks = userTasks.Where(t =>
+            t.Status == TaskStatus.ToDo ||
+            t.Status == TaskStatus.InProgress ||
+            t.Status == TaskStatus.WaitingForApproval).ToList();
 
         foreach (var task in activeTasks)
         {
-            int priorityPoints = task.Priority switch
+            int priorityWeight = GetPriorityWeight(task.Priority);
+
+            double statusFactor = task.Status switch
             {
-                TaskPriority.Low => 1,
-                TaskPriority.Medium => 2,
-                TaskPriority.High => 3,
-                TaskPriority.Critical => 5,
-                _ => 2
+                TaskStatus.InProgress => 1.0,
+                TaskStatus.ToDo => 0.5,
+                TaskStatus.WaitingForApproval => 0.3,
+                _ => 0.5
             };
 
-            double statusFactor = task.Status == TaskStatus.InProgress ? 1.0 : 0.5;
-            double deadlinePenalty = (task.Deadline.HasValue && (task.Deadline.Value - now).TotalDays <= 3) ? 2.0 : 0;
+            double deadlineMultiplier = GetDeadlineMultiplier(task.Deadline, now);
 
-            currentWorkloadRaw += (priorityPoints * statusFactor) + deadlinePenalty;
-            subtasksComplexityRaw += 1 + task.SubTasks.Count;
+            workload += priorityWeight * statusFactor * deadlineMultiplier;
+            complexityLoadRaw += (1 + task.SubTasks.Count) * priorityWeight;
         }
 
-        return currentWorkloadRaw;
+        return workload;
     }
 
-    private static double CalculateVelocity(List<TaskItem> userTasks, DateTime thirtyDaysAgo)
+    /// <summary>
+    /// Factor V — Average Completion Time (days).
+    /// Rolling 60-day window. Returns -1 if no data (handled by FillMissingValues).
+    /// </summary>
+    private static double CalculateAvgCompletionTime(List<TaskItem> userTasks, DateTime sixtyDaysAgo)
     {
-        var completedTasks = userTasks.Where(t => t.Status == TaskStatus.Done && t.UpdatedAt >= thirtyDaysAgo).ToList();
+        var completedTasks = userTasks
+            .Where(t => t.Status == TaskStatus.Done && t.UpdatedAt >= sixtyDaysAgo)
+            .ToList();
+
         if (completedTasks.Any())
         {
             return completedTasks.Average(t => (t.UpdatedAt!.Value - t.CreatedAt).TotalDays);
         }
-        return -1; // Flag for missing velocity
+
+        return -1; // Flag for missing data
     }
 
-    private static int CalculateIdleTime(List<TaskItem> userTasks, DateTime now)
+    /// <summary>
+    /// Factor A — Availability (days since last task was assigned).
+    /// Higher = more idle = should receive work.
+    /// </summary>
+    private static int CalculateAvailability(List<TaskItem> userTasks, DateTime now)
     {
         var lastTask = userTasks.OrderByDescending(t => t.CreatedAt).FirstOrDefault();
-        if (lastTask != null)
-        {
-            return (int)(now - lastTask.CreatedAt).TotalDays;
-        }
-        return 30; // Max out idle time if no tasks ever
+        return lastTask != null
+            ? (int)(now - lastTask.CreatedAt).TotalDays
+            : 30; // No tasks ever → treat as maximally available
     }
 
-    private static void FillMissingVelocityWithAverage(List<WorkloadScoreDto> dtos)
+    /// <summary>
+    /// Factor R — Reliability Score (0.0 to 1.0).
+    /// Ratio of on-time completions to total completions.
+    /// A task is on-time if it has no deadline OR was completed before/on the deadline.
+    /// Returns -1 if no completed tasks (handled by FillMissingValues).
+    /// </summary>
+    private static double CalculateReliability(List<TaskItem> userTasks)
     {
-        var membersWithVelocity = dtos.Where(d => d.VelocityDaysRaw >= 0).ToList();
-        double teamAverageVelocity = membersWithVelocity.Any() ? membersWithVelocity.Average(d => d.VelocityDaysRaw) : 5.0;
+        var completedTasks = userTasks.Where(t => t.Status == TaskStatus.Done).ToList();
+
+        if (!completedTasks.Any()) return -1; // Flag for missing data
+
+        int onTime = completedTasks.Count(t =>
+            !t.Deadline.HasValue || t.UpdatedAt <= t.Deadline.Value);
+
+        return (double)onTime / completedTasks.Count;
+    }
+
+    /// <summary>
+    /// Factor D — Overdue Pressure.
+    /// Weighted sum of priority × overdue_severity for active tasks past deadline.
+    /// Severity = min(days_overdue / 7, 3.0) — capped to avoid extreme outliers.
+    /// </summary>
+    private static double CalculateOverduePressure(List<TaskItem> userTasks, DateTime now)
+    {
+        double pressure = 0;
+
+        var activeTasks = userTasks.Where(t =>
+            t.Deadline.HasValue &&
+            t.Deadline.Value < now &&
+            (t.Status == TaskStatus.ToDo || t.Status == TaskStatus.InProgress || t.Status == TaskStatus.WaitingForApproval));
+
+        foreach (var task in activeTasks)
+        {
+            double daysOverdue = (now - task.Deadline!.Value).TotalDays;
+            double severity = Math.Min(daysOverdue / 7.0, 3.0);
+            pressure += GetPriorityWeight(task.Priority) * severity;
+        }
+
+        return pressure;
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────
+
+    private static int GetPriorityWeight(TaskPriority priority) => priority switch
+    {
+        TaskPriority.Low => 1,
+        TaskPriority.Medium => 2,
+        TaskPriority.High => 3,
+        TaskPriority.Critical => 5,
+        _ => 2
+    };
+
+    /// <summary>
+    /// Gradient deadline multiplier replacing the old binary 0/2 penalty.
+    /// </summary>
+    private static double GetDeadlineMultiplier(DateTime? deadline, DateTime now)
+    {
+        if (!deadline.HasValue) return 1.0;
+
+        double daysRemaining = (deadline.Value - now).TotalDays;
+
+        return daysRemaining switch
+        {
+            < 0   => 3.0,   // Overdue
+            <= 1  => 2.5,   // Due within 24h
+            <= 3  => 2.0,   // Due within 3 days
+            <= 7  => 1.5,   // Due within a week
+            _     => 1.0    // Comfortable margin
+        };
+    }
+
+    /// <summary>
+    /// Fills missing values (flagged as -1) with team averages.
+    /// Applies to both AvgCompletionTime and Reliability.
+    /// </summary>
+    private static void FillMissingValues(List<WorkloadScoreDto> dtos)
+    {
+        // Fill missing Avg Completion Time
+        var withTime = dtos.Where(d => d.AvgCompletionTimeRaw >= 0).ToList();
+        double teamAvgTime = withTime.Any() ? withTime.Average(d => d.AvgCompletionTimeRaw) : 5.0;
 
         for (int i = 0; i < dtos.Count; i++)
         {
-            if (Math.Abs(dtos[i].VelocityDaysRaw - (-1)) < 0.001)
-            {
-                dtos[i] = dtos[i] with { VelocityDaysRaw = teamAverageVelocity };
-            }
+            if (dtos[i].AvgCompletionTimeRaw < 0)
+                dtos[i] = dtos[i] with { AvgCompletionTimeRaw = teamAvgTime };
         }
-    }
 
-    private static void ApplyNormalizationAndScoring(List<WorkloadScoreDto> dtos)
-    {
-        double minW = dtos.Any() ? dtos.Min(d => d.CurrentWorkloadRaw) : 0;
-        double maxW = dtos.Any() ? dtos.Max(d => d.CurrentWorkloadRaw) : 0;
-
-        double minV = dtos.Any() ? dtos.Min(d => d.VelocityDaysRaw) : 0;
-        double maxV = dtos.Any() ? dtos.Max(d => d.VelocityDaysRaw) : 0;
-
-        double minA = dtos.Any() ? dtos.Min(d => d.AffinityRaw) : 0;
-        double maxA = dtos.Any() ? dtos.Max(d => d.AffinityRaw) : 0;
-
-        double minF = dtos.Any() ? dtos.Min(d => d.DaysSinceLastAssignmentRaw) : 0;
-        double maxF = dtos.Any() ? dtos.Max(d => d.DaysSinceLastAssignmentRaw) : 0;
-
-        double minS = dtos.Any() ? dtos.Min(d => d.SubtasksComplexityRaw) : 0;
-        double maxS = dtos.Any() ? dtos.Max(d => d.SubtasksComplexityRaw) : 0;
+        // Fill missing Reliability
+        var withReliability = dtos.Where(d => d.ReliabilityRaw >= 0).ToList();
+        double teamAvgReliability = withReliability.Any() ? withReliability.Average(d => d.ReliabilityRaw) : 0.8;
 
         for (int i = 0; i < dtos.Count; i++)
         {
-            var d = dtos[i];
-            
-            double normW = Normalize(d.CurrentWorkloadRaw, minW, maxW);
-            double normV = Normalize(d.VelocityDaysRaw, minV, maxV);
-            double normA = Normalize(d.AffinityRaw, minA, maxA);
-            double normF = Normalize(d.DaysSinceLastAssignmentRaw, minF, maxF);
-            double normS = Normalize(d.SubtasksComplexityRaw, minS, maxS);
-
-            double finalScore = (0.35 * normW) 
-                              + (0.25 * normV) 
-                              - (0.15 * normA) 
-                              - (0.15 * normF) 
-                              + (0.10 * normS);
-
-            dtos[i] = d with { FinalScore = Math.Round(finalScore, 4) };
+            if (dtos[i].ReliabilityRaw < 0)
+                dtos[i] = dtos[i] with { ReliabilityRaw = teamAvgReliability };
         }
     }
 
-    private static double Normalize(double value, double min, double max)
+    /// <summary>
+    /// Z-Score normalization + weighted scoring.
+    /// z(x) = (x - μ) / σ — robust to small team sizes unlike min-max.
+    /// </summary>
+    private static void ApplyZScoreNormalizationAndScoring(List<WorkloadScoreDto> dtos)
     {
-        if (Math.Abs(max - min) < 0.001) return 0;
-        return (value - min) / (max - min);
+        if (dtos.Count <= 1)
+        {
+            // Single member: score is always 0, they are the only recommendation
+            for (int i = 0; i < dtos.Count; i++)
+                dtos[i] = dtos[i] with { FinalScore = 0 };
+            return;
+        }
+
+        // Extract raw value arrays for each factor
+        var wValues = dtos.Select(d => d.CurrentWorkloadRaw).ToArray();
+        var vValues = dtos.Select(d => d.AvgCompletionTimeRaw).ToArray();
+        var tValues = dtos.Select(d => (double)d.ThroughputRaw).ToArray();
+        var aValues = dtos.Select(d => (double)d.AvailabilityDaysRaw).ToArray();
+        var cValues = dtos.Select(d => (double)d.ComplexityLoadRaw).ToArray();
+        var rValues = dtos.Select(d => d.ReliabilityRaw).ToArray();
+        var dValues = dtos.Select(d => d.OverduePressureRaw).ToArray();
+        var xValues = dtos.Select(d => (double)d.CrossUnitLoadRaw).ToArray();
+
+        for (int i = 0; i < dtos.Count; i++)
+        {
+            double zW = ZScore(wValues[i], wValues);
+            double zV = ZScore(vValues[i], vValues);
+            double zT = ZScore(tValues[i], tValues);
+            double zA = ZScore(aValues[i], aValues);
+            double zC = ZScore(cValues[i], cValues);
+            double zR = ZScore(rValues[i], rValues);
+            double zD = ZScore(dValues[i], dValues);
+            double zX = ZScore(xValues[i], xValues);
+
+            // S = w1·z(W) + w2·z(V) − w3·z(T) − w4·z(A) + w5·z(C) − w6·z(R) + w7·z(D) + w8·z(X)
+            double finalScore =
+                  WeightWorkload       * zW
+                + WeightCompletionTime * zV
+                - WeightThroughput     * zT
+                - WeightAvailability   * zA
+                + WeightComplexity     * zC
+                - WeightReliability    * zR
+                + WeightOverdue        * zD
+                + WeightCrossUnit      * zX;
+
+            dtos[i] = dtos[i] with { FinalScore = Math.Round(finalScore, 4) };
+        }
+    }
+
+    /// <summary>
+    /// Computes the Z-score of a single value relative to the full dataset.
+    /// Returns 0 when standard deviation is ~0 (all values identical).
+    /// </summary>
+    private static double ZScore(double value, double[] allValues)
+    {
+        double mean = allValues.Average();
+        double variance = allValues.Average(v => (v - mean) * (v - mean));
+        double stdDev = Math.Sqrt(variance);
+
+        return stdDev < 0.0001 ? 0 : (value - mean) / stdDev;
     }
 }
+

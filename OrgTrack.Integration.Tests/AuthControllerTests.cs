@@ -31,7 +31,7 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
     public async Task DevLogin_ShouldReturnTokens_WhenCalledInTestEnvironment()
     {
         // Act
-        var request = new DevLoginRequest("testdev@aiesec.net", "Test", "Dev");
+        var request = new { Email = "testdev@aiesec.net", FirstName = "Test", LastName = "Dev" };
         var response = await _client.PostAsJsonAsync("/api/auth/dev-login", request);
 
         // Assert

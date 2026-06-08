@@ -2,12 +2,16 @@ export interface WorkloadScoreDto {
   userId: string;
   userName: string;
   pictureUrl?: string;
+  rank: number;
   finalScore: number;
   currentWorkloadRaw: number;
-  velocityDaysRaw: number;
-  affinityRaw: number;
-  daysSinceLastAssignmentRaw: number;
-  subtasksComplexityRaw: number;
+  avgCompletionTimeRaw: number;
+  throughputRaw: number;
+  availabilityDaysRaw: number;
+  complexityLoadRaw: number;
+  reliabilityRaw: number;
+  overduePressureRaw: number;
+  crossUnitLoadRaw: number;
 }
 
 export interface UnitMemberDto {

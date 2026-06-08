@@ -305,17 +305,20 @@ const sortedMembers = computed(() => {
   return sorted;
 });
 
-const isRecommended = (userId: string) => {
-  if (workloadScores.value.length === 0) return false;
-  const minScore = workloadScores.value[0]?.finalScore;
-  const userScore = workloadScores.value.find(w => w.userId === userId)?.finalScore;
-  return userScore === minScore;
+const getMedalForUser = (userId: string): string => {
+  const ws = workloadScores.value.find(w => w.userId === userId);
+  if (!ws) return '';
+  if (ws.rank === 1) return '🥇 ';
+  if (ws.rank === 2) return '🥈 ';
+  if (ws.rank === 3) return '🥉 ';
+  return '';
 };
 
 const getWorkloadTooltip = (userId: string) => {
   const ws = workloadScores.value.find(w => w.userId === userId);
   if (!ws) return '';
-  return `Load: ${ws.currentWorkloadRaw} | Velocity: ${ws.velocityDaysRaw.toFixed(1)}d | Affinity: ${ws.affinityRaw} | Idle: ${ws.daysSinceLastAssignmentRaw}d | Subtasks: ${ws.subtasksComplexityRaw}`;
+  const reliability = (ws.reliabilityRaw * 100).toFixed(0);
+  return `#${ws.rank} | Workload: ${ws.currentWorkloadRaw.toFixed(1)} | Completion: ${ws.avgCompletionTimeRaw.toFixed(1)}d | Throughput: ${ws.throughputRaw} | Avail: ${ws.availabilityDaysRaw}d | Complexity: ${ws.complexityLoadRaw} | Reliability: ${reliability}% | Overdue: ${ws.overduePressureRaw.toFixed(1)} | Cross-Unit: ${ws.crossUnitLoadRaw}`;
 };
 
 const handleSubtaskStatusChange = async (subTask: TaskDto, newStatus: string) => {
@@ -565,13 +568,13 @@ const submitTask = async () => {
                   :value="member.userId"
                   :title="getWorkloadTooltip(member.userId)"
                 >
-                  {{ isRecommended(member.userId) ? '⭐ ' : '' }}{{ member.firstName }} {{ member.lastName }}
+                  {{ getMedalForUser(member.userId) }}{{ member.firstName }} {{ member.lastName }}
                 </option>
                 <option v-if="props.mode === 'me'" :value="authStore.user?.id">Me ({{ authStore.user?.firstName }})</option>
               </select>
               <p v-if="props.mode === 'me'" class="text-[10px] text-text-muted mt-1">In "My Tasks" mode, tasks are automatically assigned to you.</p>
               <p v-else-if="workloadScores.length > 0" class="text-[10px] text-text-muted mt-1">
-                ⭐ means the user is recommended
+                🥇 Best fit · 🥈 2nd · 🥉 3rd — based on 8 workload factors
               </p>
             </div>
             

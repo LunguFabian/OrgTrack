@@ -9,6 +9,15 @@ export interface MemberActivityScoreDto {
   totalScore: number;
 }
 
+export interface BurnoutRiskDto {
+  userId: string;
+  userName: string;
+  pictureUrl?: string;
+  burnoutScorePercentage: number;
+  riskLevel: string;
+  warningFlags: string[];
+}
+
 export interface ActivityLogDto {
   createdAt: string;
   action: string;
@@ -55,6 +64,12 @@ export const analyticsService = {
       params: { format },
       responseType: 'blob'
     });
+    return response.data;
+  },
+
+  async getBurnoutRisks(unitId?: string): Promise<BurnoutRiskDto[]> {
+    const params = unitId ? { unitId } : undefined;
+    const response = await api.get<BurnoutRiskDto[]>('/analytics/burnout-risks', { params });
     return response.data;
   }
 };

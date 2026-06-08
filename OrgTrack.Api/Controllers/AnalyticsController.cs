@@ -164,4 +164,20 @@ public class AnalyticsController(
             return NotFound(new { error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Gets the burnout risk analysis for all members under the requester's hierarchical control.
+    /// Only returns data for users that the requester has leadership over.
+    /// </summary>
+    [HttpGet("burnout-risks")]
+    public async Task<IActionResult> GetHierarchicalBurnoutRisks([FromQuery] Guid? unitId = null)
+    {
+        var requesterId = User.GetUserId();
+        var risks = await analyticsService.GetHierarchicalBurnoutRisksAsync(requesterId, unitId);
+        
+        // Exclude healthy users to only focus on risks
+        var filteredRisks = risks.Where(r => r.RiskLevel != "Healthy").ToList();
+        
+        return Ok(filteredRisks);
+    }
 }

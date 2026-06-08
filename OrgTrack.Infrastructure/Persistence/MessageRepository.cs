@@ -3,7 +3,7 @@ using OrgTrack.Application.Interfaces;
 using OrgTrack.Domain.Entities;
 using OrgTrack.Infrastructure.Persistence;
 
-namespace OrgTrack.Infrastructure.Repositories;
+namespace OrgTrack.Infrastructure.Persistence;
 
 public class MessageRepository : IMessageRepository
 {

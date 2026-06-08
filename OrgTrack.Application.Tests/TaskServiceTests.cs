@@ -253,20 +253,23 @@ public class TaskServiceTests
 
         _unitRepositoryMock.Setup(r => r.GetMembersAsync(unitId)).ReturnsAsync(members);
         _taskRepositoryMock.Setup(r => r.GetByUnitIdAsync(unitId)).ReturnsAsync(tasks);
+        _taskRepositoryMock.Setup(r => r.GetByAssigneeIdAsync(It.IsAny<Guid>())).ReturnsAsync(new List<TaskItem>());
 
         var result = await _taskService.GetWorkloadRecommendationAsync(unitId);
 
         result.Should().NotBeNull();
         result.Should().HaveCount(2);
         
-        // Results are ordered by FinalScore (lowest first)
+        // Results are ordered by FinalScore (lowest first) and ranked
         result[0].FinalScore.Should().BeLessThanOrEqualTo(result[1].FinalScore);
+        result[0].Rank.Should().Be(1);
+        result[1].Rank.Should().Be(2);
         
-        // User 2 has no velocity, should be filled with average
+        // User 2 has no completion time data, should be filled with average
         var user2Result = result.First(r => r.UserId == user2);
         var user1Result = result.First(r => r.UserId == user1);
 
-        user2Result.VelocityDaysRaw.Should().Be(user1Result.VelocityDaysRaw); // Missing velocity is replaced by average
+        user2Result.AvgCompletionTimeRaw.Should().Be(user1Result.AvgCompletionTimeRaw); // Missing value is replaced by average
     }
 
     [Fact]

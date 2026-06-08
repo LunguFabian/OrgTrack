@@ -8,7 +8,8 @@ import UnitMembersTab from '../components/unit/UnitMembersTab.vue';
 import KanbanBoard from '../components/unit/KanbanBoard.vue';
 import EventsTab from '../components/unit/EventsTab.vue';
 import AnalyticsTab from '../components/unit/AnalyticsTab.vue';
-import { Users, KanbanSquare, CalendarDays, BarChart, ArrowLeft, Settings, Globe, Building2, Layers, Shield, RefreshCw } from 'lucide-vue-next';
+import BurnoutRadar from '../components/unit/BurnoutRadar.vue';
+import { Users, KanbanSquare, CalendarDays, BarChart, ArrowLeft, Settings, Globe, Building2, Layers, Shield, RefreshCw, HeartPulse } from 'lucide-vue-next';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../api/axios';
 import SkeletonLoader from '../components/common/SkeletonLoader.vue';
@@ -39,7 +40,8 @@ const tabs = computed(() => {
     { id: 'members', name: 'Members', icon: Users },
     { id: 'kanban', name: 'Task Board', icon: KanbanSquare },
     { id: 'events', name: 'Events', icon: CalendarDays },
-    { id: 'analytics', name: 'Analytics', icon: BarChart }
+    { id: 'analytics', name: 'Analytics', icon: BarChart },
+    { id: 'burnout', name: 'Burnout Radar', icon: HeartPulse }
   ];
   if (currentUserRole.value === 'Member') {
     return allTabs.filter(t => t.id === 'members' || t.id === 'kanban');
@@ -227,6 +229,11 @@ const handleRoleUpdated = () => {
         <!-- Analytics Tab -->
         <div v-else-if="currentTab === 'analytics'" class="bg-surface border border-border rounded-2xl p-6">
           <AnalyticsTab :unit-id="unitId" :members="members" :unit-type="unitData.type" />
+        </div>
+
+        <!-- Burnout Radar Tab -->
+        <div v-else-if="currentTab === 'burnout'" class="bg-surface border border-border rounded-2xl p-6">
+          <BurnoutRadar :unit-id="unitId" />
         </div>
       </div>
     </template>
