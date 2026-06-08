@@ -30,7 +30,8 @@ public class InviteLinkService(
         };
 
         await inviteLinkRepository.AddAsync(invite);
-        var frontendUrl = $"http://localhost:5173/invite/{invite.Token}";
+        var baseUrl = Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "http://localhost:5173";
+        var frontendUrl = $"{baseUrl.TrimEnd('/')}/invite/{invite.Token}";
 
         return new InviteLinkCreatedDto(invite.Token, frontendUrl, invite.ExpiresAt);
     }

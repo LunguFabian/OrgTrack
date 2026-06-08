@@ -42,11 +42,12 @@ public class AuthenticateUser(
             };
             await userRepository.AddAsync(user);
 
+            var baseUrl = Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "http://localhost:5173";
             // Send welcome email asynchronously without blocking the login
             _ = emailService.SendEmailAsync(
                 user.Email,
                 "Welcome to OrgTrack! 🚀",
-                OrgTrack.Application.Helpers.EmailTemplates.GetWelcomeEmail(user.FirstName, "http://localhost:5173")
+                OrgTrack.Application.Helpers.EmailTemplates.GetWelcomeEmail(user.FirstName, baseUrl.TrimEnd('/'))
             );
         }
         else
