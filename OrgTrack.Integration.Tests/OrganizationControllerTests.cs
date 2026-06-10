@@ -287,4 +287,76 @@ public class OrganizationControllerTests : IntegrationTestBase
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
+
+    [Fact]
+    public async Task GetMyUnits_ShouldReturnUnits()
+    {
+        // Arrange
+        var testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        AuthenticateAs(testUserId);
+        
+        await ExecuteInDbAsync(async db =>
+        {
+            if (!db.Users.Any(u => u.Id == testUserId))
+                db.Users.Add(new User { Id = testUserId, Email = "test@test.com", FirstName = "Test", LastName = "User" });
+            
+            var unit = new OrganizationUnit { Id = Guid.NewGuid(), Name = "Unit", Type = UnitType.Committee };
+            db.OrganizationUnits.Add(unit);
+            
+            var role = new Role { Id = Guid.NewGuid(), Name = "Member", Permissions = "[]" };
+            if (!db.Roles.Any(r => r.Name == "Member")) db.Roles.Add(role);
+            else role = db.Roles.First(r => r.Name == "Member");
+            
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            await db.SaveChangesAsync();
+        });
+
+        // Act
+        var response = await Client.GetAsync("/api/me/units");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task SearchMembers_ShouldReturnOk()
+    {
+        // Arrange
+        var testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        AuthenticateAs(testUserId);
+        
+        await ExecuteInDbAsync(async db =>
+        {
+            if (!db.Users.Any(u => u.Id == testUserId))
+                db.Users.Add(new User { Id = testUserId, Email = "test@test.com", FirstName = "Test", LastName = "User" });
+            await db.SaveChangesAsync();
+        });
+
+        // Act
+        var response = await Client.GetAsync("/api/organization/search-members?q=test");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetUserProfile_ShouldReturnOk()
+    {
+        // Arrange
+        var testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        AuthenticateAs(testUserId);
+        
+        await ExecuteInDbAsync(async db =>
+        {
+            if (!db.Users.Any(u => u.Id == testUserId))
+                db.Users.Add(new User { Id = testUserId, Email = "test@test.com", FirstName = "Test", LastName = "User" });
+            await db.SaveChangesAsync();
+        });
+
+        // Act
+        var response = await Client.GetAsync($"/api/organization/users/{testUserId}/profile");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 }

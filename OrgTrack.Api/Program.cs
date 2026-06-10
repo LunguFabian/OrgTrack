@@ -123,7 +123,10 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<OrgTrackDbContext>();
     // Apply pending migrations automatically on startup
-    await dbContext.Database.MigrateAsync();
+    if (dbContext.Database.IsRelational())
+    {
+        await dbContext.Database.MigrateAsync();
+    }
     
     await DataSeeder.SeedDataAsync(dbContext, true);
 }

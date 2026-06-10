@@ -106,4 +106,73 @@ public class AnalyticsControllerTests : IntegrationTestBase
         var response = await Client.GetAsync($"/api/analytics/national/{unitId}");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
+
+    [Fact]
+    public async Task GetLeaderboard_ShouldReturnLeaderboard_WhenUserHasAccess()
+    {
+        AuthenticateAs(_testUserId);
+        
+        Guid unitId = Guid.Empty;
+        await ExecuteInDbAsync(async db =>
+        {
+            var unit = new OrganizationUnit { Name = "Local Committee", Description = "Desc", Type = UnitType.Committee };
+            db.OrganizationUnits.Add(unit);
+            
+            var role = new Role { Name = "Leader", Permissions = "[\"Units.View\"]" };
+            db.Roles.Add(role);
+
+            if (!db.Users.Any(u => u.Id == _testUserId)) 
+                db.Users.Add(new User { Id = _testUserId, FirstName = "Test", LastName = "User", Email = "test@test.com" });
+
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            await db.SaveChangesAsync();
+            unitId = unit.Id;
+        });
+
+        var response = await Client.GetAsync($"/api/analytics/units/{unitId}/leaderboard");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetReport_ShouldReturnPdf_WhenUserHasAccess()
+    {
+        AuthenticateAs(_testUserId);
+        
+        Guid unitId = Guid.Empty;
+        await ExecuteInDbAsync(async db =>
+        {
+            var unit = new OrganizationUnit { Name = "Local Committee", Description = "Desc", Type = UnitType.Committee };
+            db.OrganizationUnits.Add(unit);
+            
+            var role = new Role { Name = "Leader", Permissions = "[\"Units.View\"]" };
+            db.Roles.Add(role);
+
+            if (!db.Users.Any(u => u.Id == _testUserId)) 
+                db.Users.Add(new User { Id = _testUserId, FirstName = "Test", LastName = "User", Email = "test@test.com" });
+
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            await db.SaveChangesAsync();
+            unitId = unit.Id;
+        });
+
+        var response = await Client.GetAsync($"/api/analytics/units/{unitId}/report?format=pdf");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/pdf");
+    }
+
+    [Fact]
+    public async Task GetHierarchicalBurnoutRisks_ShouldReturnRisks()
+    {
+        AuthenticateAs(_testUserId);
+
+        await ExecuteInDbAsync(async db =>
+        {
+            if (!db.Users.Any(u => u.Id == _testUserId)) 
+                db.Users.Add(new User { Id = _testUserId, FirstName = "Test", LastName = "User", Email = "test@test.com" });
+            await db.SaveChangesAsync();
+        });
+
+        var response = await Client.GetAsync("/api/analytics/burnout-risks");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 }

@@ -66,19 +66,22 @@ public static class DataSeeder
         var adminEmail = "lungufabian718@gmail.com";
         var admin = await context.Users.FirstOrDefaultAsync(u => u.Email == adminEmail);
         
-        await context.ActivityLogs.ExecuteDeleteAsync();
-        await context.EventRsvps.ExecuteDeleteAsync();
-        await context.EventInvitedUnits.ExecuteDeleteAsync();
-        await context.EventInvitedUsers.ExecuteDeleteAsync();
-        await context.Events.ExecuteDeleteAsync();
-        await context.Tasks.ExecuteDeleteAsync();
-        await context.InviteLinks.ExecuteDeleteAsync();
-        await context.UserUnitRoles.ExecuteDeleteAsync();
-        await context.Messages.ExecuteDeleteAsync();
-        await context.Notifications.ExecuteDeleteAsync();
-        await context.RefreshTokens.ExecuteDeleteAsync();
-        await context.OrganizationUnits.ExecuteDeleteAsync();
-        await context.Users.Where(u => u.Email != adminEmail).ExecuteDeleteAsync();
+        if (context.Database.IsRelational())
+        {
+            await context.ActivityLogs.ExecuteDeleteAsync();
+            await context.EventRsvps.ExecuteDeleteAsync();
+            await context.EventInvitedUnits.ExecuteDeleteAsync();
+            await context.EventInvitedUsers.ExecuteDeleteAsync();
+            await context.Events.ExecuteDeleteAsync();
+            await context.Tasks.ExecuteDeleteAsync();
+            await context.InviteLinks.ExecuteDeleteAsync();
+            await context.UserUnitRoles.ExecuteDeleteAsync();
+            await context.Messages.ExecuteDeleteAsync();
+            await context.Notifications.ExecuteDeleteAsync();
+            await context.RefreshTokens.ExecuteDeleteAsync();
+            await context.OrganizationUnits.ExecuteDeleteAsync();
+            await context.Users.Where(u => u.Email != adminEmail).ExecuteDeleteAsync();
+        }
 
         if (admin == null)
         {

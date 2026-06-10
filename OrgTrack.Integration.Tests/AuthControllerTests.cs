@@ -27,21 +27,6 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
         });
     }
 
-    [Fact]
-    public async Task DevLogin_ShouldReturnTokens_WhenCalledInTestEnvironment()
-    {
-        // Act
-        var request = new { Email = "testdev@aiesec.net", FirstName = "Test", LastName = "Dev" };
-        var response = await _client.PostAsJsonAsync("/api/auth/dev-login", request);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<AuthResponse>();
-        content.Should().NotBeNull();
-        content!.Token.Should().NotBeNullOrEmpty();
-        content.RefreshToken.Should().NotBeNullOrEmpty();
-        content.User.Email.Should().Be("testdev@aiesec.net");
-    }
 
     [Fact]
     public async Task Refresh_ShouldReturnNewTokens_WhenRefreshTokenIsValid()

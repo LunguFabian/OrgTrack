@@ -100,4 +100,80 @@ public class MessagesControllerTests : IntegrationTestBase
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
+
+    [Fact]
+    public async Task GetConversationMessages_ShouldReturnMessages()
+    {
+        AuthenticateAs(_testUserId);
+        var targetUserId = Guid.NewGuid();
+
+        await ExecuteInDbAsync(async db =>
+        {
+            if (!db.Users.Any(u => u.Id == _testUserId)) 
+                db.Users.Add(new User { Id = _testUserId, FirstName = "Sender", LastName = "User", Email = "sender@test.com" });
+            db.Users.Add(new User { Id = targetUserId, FirstName = "Receiver", LastName = "User", Email = "receiver@test.com" });
+            
+            db.Messages.Add(new Message 
+            { 
+                Id = Guid.NewGuid(), 
+                SenderId = targetUserId, 
+                ReceiverId = _testUserId, 
+                Content = "Read me", 
+                SentAt = DateTime.UtcNow, 
+                IsRead = false 
+            });
+            await db.SaveChangesAsync();
+        });
+
+        var response = await Client.GetAsync($"/api/messages/conversations/{targetUserId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetUnreadTotalCount_ShouldReturnCount()
+    {
+        AuthenticateAs(_testUserId);
+        var targetUserId = Guid.NewGuid();
+
+        await ExecuteInDbAsync(async db =>
+        {
+            if (!db.Users.Any(u => u.Id == _testUserId)) 
+                db.Users.Add(new User { Id = _testUserId, FirstName = "Sender", LastName = "User", Email = "sender@test.com" });
+            db.Users.Add(new User { Id = targetUserId, FirstName = "Receiver", LastName = "User", Email = "receiver@test.com" });
+            
+            db.Messages.Add(new Message 
+            { 
+                Id = Guid.NewGuid(), 
+                SenderId = targetUserId, 
+                ReceiverId = _testUserId, 
+                Content = "Read me", 
+                SentAt = DateTime.UtcNow, 
+                IsRead = false 
+            });
+            await db.SaveChangesAsync();
+        });
+
+        var response = await Client.GetAsync("/api/messages/unread-count");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task SendMessage_ShouldReturnBadRequest_WhenReceiverIdIsNull()
+    {
+        AuthenticateAs(_testUserId);
+        var request = new SendMessageRequest(null, "Hello Integration Tests!");
+        var response = await Client.PostAsJsonAsync("/api/messages/send", request);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task SendMessage_ShouldReturnBadRequest_WhenContentIsEmpty()
+    {
+        AuthenticateAs(_testUserId);
+        var request = new SendMessageRequest(Guid.NewGuid(), "");
+        var response = await Client.PostAsJsonAsync("/api/messages/send", request);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }

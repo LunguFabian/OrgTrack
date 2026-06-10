@@ -202,4 +202,97 @@ public class EventsControllerTests : IntegrationTestBase
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
+
+    [Fact]
+    public async Task GetEvents_ShouldReturnEvents_WhenUserHasViewPermission()
+    {
+        // Arrange
+        Guid unitId = Guid.Empty;
+        var _testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        await ExecuteInDbAsync(async db =>
+        {
+            var unit = new OrganizationUnit { Name = "Test Unit", Type = UnitType.Committee };
+            db.OrganizationUnits.Add(unit);
+            var role = new Role { Name = "Member", Permissions = "[\"Events.View\"]" };
+            db.Roles.Add(role);
+            if (!db.Users.Any(u => u.Id == _testUserId)) { db.Users.Add(new User { Id = _testUserId, FirstName = "Test", LastName = "User", Email = "test@aiesec.net" }); }
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            
+            var ev = new Event { Title = "Test Event", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddHours(1), OrganizationUnitId = unit.Id };
+            db.Events.Add(ev);
+            
+            await db.SaveChangesAsync();
+            unitId = unit.Id;
+        });
+
+        // Act
+        var response = await Client.GetAsync($"/api/organization/units/{unitId}/events");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task ConfirmAttendance_ShouldReturnOk_WhenUserHasManagePermission()
+    {
+        // Arrange
+        Guid unitId = Guid.Empty;
+        var _testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        Guid eventId = Guid.Empty;
+        await ExecuteInDbAsync(async db =>
+        {
+            var unit = new OrganizationUnit { Name = "Test Unit", Type = UnitType.Committee };
+            db.OrganizationUnits.Add(unit);
+            var role = new Role { Name = "Leader", Permissions = "[\"Events.Manage\"]" };
+            db.Roles.Add(role);
+            if (!db.Users.Any(u => u.Id == _testUserId)) { db.Users.Add(new User { Id = _testUserId, FirstName = "Test", LastName = "User", Email = "test@aiesec.net" }); }
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            
+            var ev = new Event { Title = "Test Event", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddHours(1), OrganizationUnitId = unit.Id };
+            db.Events.Add(ev);
+            
+            await db.SaveChangesAsync();
+            unitId = unit.Id;
+            eventId = ev.Id;
+        });
+
+        var attendanceReq = new AttendanceRequest(AttendanceStatus.Present);
+
+        // Act
+        var response = await Client.PostAsJsonAsync($"/api/organization/units/{unitId}/events/{eventId}/attendance/{_testUserId}", attendanceReq);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetRsvpSummary_ShouldReturnOk_WhenUserHasViewPermission()
+    {
+        // Arrange
+        Guid unitId = Guid.Empty;
+        var _testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        Guid eventId = Guid.Empty;
+        await ExecuteInDbAsync(async db =>
+        {
+            var unit = new OrganizationUnit { Name = "Test Unit", Type = UnitType.Committee };
+            db.OrganizationUnits.Add(unit);
+            var role = new Role { Name = "Member", Permissions = "[\"Events.View\"]" };
+            db.Roles.Add(role);
+            if (!db.Users.Any(u => u.Id == _testUserId)) { db.Users.Add(new User { Id = _testUserId, FirstName = "Test", LastName = "User", Email = "test@aiesec.net" }); }
+            db.UserUnitRoles.Add(new UserUnitRole { UserId = _testUserId, OrganizationUnitId = unit.Id, RoleId = role.Id });
+            
+            var ev = new Event { Title = "Test Event", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddHours(1), OrganizationUnitId = unit.Id };
+            db.Events.Add(ev);
+            
+            await db.SaveChangesAsync();
+            unitId = unit.Id;
+            eventId = ev.Id;
+        });
+
+        // Act
+        var response = await Client.GetAsync($"/api/organization/units/{unitId}/events/{eventId}/rsvp-summary");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 }

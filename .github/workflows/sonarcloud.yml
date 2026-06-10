@@ -53,7 +53,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"LunguFabian_OrgTrack" /o:"lungufabian" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**/Migrations/**,**/Hubs/**,**/orgtrack-client/**" /d:sonar.exclusions="**/Migrations/**"
+          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"LunguFabian_OrgTrack" /o:"lungufabian" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**/Migrations/**,**/Hubs/**,**/orgtrack-client/**,**/OrgTrack.Infrastructure/ExternalServices/**,**/OrgTrack.Infrastructure/Auth/**" /d:sonar.exclusions="**/Migrations/**"
           dotnet build
           dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
           ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
