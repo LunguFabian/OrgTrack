@@ -21,7 +21,8 @@ public record AttendanceReportItemDto(
     Guid UserId,
     string UserName,
     string Rsvp,
-    string Attendance
+    string Attendance,
+    string? ProfilePictureUrl = null
 );
 
-public record RsvpSummaryItemDto(Guid UserId, string UserName, string Rsvp);
+public record RsvpSummaryItemDto(Guid UserId, string UserName, string Rsvp, string? ProfilePictureUrl = null);

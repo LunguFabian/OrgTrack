@@ -6,12 +6,14 @@ export interface AttendanceReportItem {
   userName: string;
   rsvp: string;
   attendance: string;
+  profilePictureUrl?: string;
 }
 
 export interface RsvpSummaryItem {
   userId: string;
   userName: string;
   rsvp: string;
+  profilePictureUrl?: string;
 }
 
 export const eventsService = {

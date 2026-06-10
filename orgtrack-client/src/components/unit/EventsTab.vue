@@ -539,7 +539,8 @@ const handleDeleteEvent = async (event: EventDto) => {
                       class="flex items-center justify-between bg-bg border border-border rounded-lg p-2"
                     >
                       <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+                        <img v-if="item.profilePictureUrl" :src="item.profilePictureUrl" class="w-6 h-6 rounded-full object-cover" />
+                        <div v-else class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
                           {{ item.userName.substring(0, 2).toUpperCase() }}
                         </div>
                         <span class="text-sm text-text-muted">{{ item.userName }}</span>
@@ -602,7 +603,8 @@ const handleDeleteEvent = async (event: EventDto) => {
                       <div v-for="item in rsvpSummaries[event.id]" :key="'rsvp-'+item.userId"
                         class="flex items-center justify-between bg-bg border border-border rounded-lg p-2">
                         <div class="flex items-center gap-2">
-                          <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+                          <img v-if="item.profilePictureUrl" :src="item.profilePictureUrl" class="w-6 h-6 rounded-full object-cover" />
+                          <div v-else class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
                             {{ item.userName.substring(0, 2).toUpperCase() }}
                           </div>
                           <span class="text-sm text-text-muted">{{ item.userName }}</span>
@@ -628,7 +630,8 @@ const handleDeleteEvent = async (event: EventDto) => {
                         class="flex items-center justify-between bg-bg border border-border rounded-lg p-2.5"
                       >
                         <div class="flex items-center gap-2">
-                          <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+                          <img v-if="item.profilePictureUrl" :src="item.profilePictureUrl" class="w-6 h-6 rounded-full object-cover" />
+                          <div v-else class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
                             {{ item.userName.substring(0, 2).toUpperCase() }}
                           </div>
                           <div class="flex flex-col">

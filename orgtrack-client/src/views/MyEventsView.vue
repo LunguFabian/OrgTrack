@@ -349,7 +349,8 @@ const attendanceLabel = (attendance: string) => {
                     <div v-for="item in rsvpSummaries[event.id]" :key="item.userId"
                       class="flex items-center justify-between bg-surface border border-border rounded-lg p-2.5 transition-colors hover:border-gray-700">
                       <div class="flex items-center gap-3">
-                        <div class="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-[10px] font-bold">
+                        <img v-if="item.profilePictureUrl" :src="item.profilePictureUrl" class="w-7 h-7 rounded-full object-cover border border-emerald-500/20" />
+                        <div v-else class="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-[10px] font-bold">
                           {{ item.userName.substring(0, 2).toUpperCase() }}
                         </div>
                         <span class="text-sm font-medium text-text">{{ item.userName }}</span>
@@ -410,7 +411,8 @@ const attendanceLabel = (attendance: string) => {
                       <div v-for="item in rsvpSummaries[event.id]" :key="'rsvp-'+item.userId"
                         class="flex items-center justify-between bg-surface border border-border rounded-lg p-2">
                         <div class="flex items-center gap-2">
-                          <div class="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+                          <img v-if="item.profilePictureUrl" :src="item.profilePictureUrl" class="w-6 h-6 rounded-full object-cover border border-emerald-500/20" />
+                          <div v-else class="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
                             {{ item.userName.substring(0, 2).toUpperCase() }}
                           </div>
                           <span class="text-sm text-text-muted">{{ item.userName }}</span>
@@ -432,7 +434,8 @@ const attendanceLabel = (attendance: string) => {
                       <div v-for="item in attendanceReports[event.id]" :key="'att-'+item.userId"
                         class="flex items-center justify-between bg-surface border border-border rounded-lg p-2.5">
                         <div class="flex items-center gap-2">
-                          <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+                          <img v-if="item.profilePictureUrl" :src="item.profilePictureUrl" class="w-6 h-6 rounded-full object-cover" />
+                          <div v-else class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
                             {{ item.userName.substring(0, 2).toUpperCase() }}
                           </div>
                           <div class="flex flex-col">

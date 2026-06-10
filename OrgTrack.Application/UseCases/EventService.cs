@@ -325,7 +325,8 @@ public class EventService(
                 u.Id,
                 $"{u.FirstName} {u.LastName}".Trim(),
                 hasRsvp ? rsvp!.Rsvp.ToString() : RsvpStatus.NoResponse.ToString(),
-                hasRsvp ? rsvp!.Attendance.ToString() : AttendanceStatus.Unmarked.ToString()
+                hasRsvp ? rsvp!.Attendance.ToString() : AttendanceStatus.Unmarked.ToString(),
+                u.PictureUrl
             );
         });
     }
@@ -338,7 +339,8 @@ public class EventService(
         return eligibleUsers.Select(u => new RsvpSummaryItemDto(
             u!.Id,
             $"{u.FirstName} {u.LastName}".Trim(),
-            rsvpDict.TryGetValue(u.Id, out var rsvpStatus) ? rsvpStatus.ToString() : RsvpStatus.NoResponse.ToString()
+            rsvpDict.TryGetValue(u.Id, out var rsvpStatus) ? rsvpStatus.ToString() : RsvpStatus.NoResponse.ToString(),
+            u.PictureUrl
         ));
     }
 
