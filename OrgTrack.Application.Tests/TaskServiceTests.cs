@@ -144,7 +144,7 @@ public class TaskServiceTests
     {
         var taskId = Guid.NewGuid();
         var requestingUserId = Guid.NewGuid();
-        var task = new TaskItem { Id = taskId, Status = TaskStatus.ToDo, AssigneeId = requestingUserId };
+        var task = new TaskItem { Id = taskId, Status = TaskStatus.ToDo, AssigneeId = requestingUserId, OrganizationUnitId = Guid.NewGuid() };
         
         _taskRepositoryMock.Setup(r => r.GetByIdAsync(taskId)).ReturnsAsync(task);
         _taskRepositoryMock.Setup(r => r.UpdateAsync(task)).Returns(Task.CompletedTask);
@@ -153,6 +153,40 @@ public class TaskServiceTests
 
         result.Should().NotBeNull();
         task.Status.Should().Be(TaskStatus.InProgress);
+    }
+
+    [Fact]
+    public async Task UpdateTaskStatusAsync_ShouldSendNotification_WhenMovedToDone()
+    {
+        var taskId = Guid.NewGuid();
+        var requestingUserId = Guid.NewGuid(); // TL or VP
+        var assigneeId = Guid.NewGuid(); // Some other user
+        var task = new TaskItem { Id = taskId, Title = "My Task", Status = TaskStatus.WaitingForApproval, AssigneeId = assigneeId, OrganizationUnitId = Guid.NewGuid() };
+        
+        _taskRepositoryMock.Setup(r => r.GetByIdAsync(taskId)).ReturnsAsync(task);
+        _taskRepositoryMock.Setup(r => r.UpdateAsync(task)).Returns(Task.CompletedTask);
+
+        var result = await _taskService.UpdateTaskStatusAsync(taskId, TaskStatus.Done, requestingUserId, true);
+
+        result.Should().NotBeNull();
+        task.Status.Should().Be(TaskStatus.Done);
+    }
+
+    [Fact]
+    public async Task UpdateTaskStatusAsync_ShouldSendNotification_WhenMovedToReview()
+    {
+        var taskId = Guid.NewGuid();
+        var requestingUserId = Guid.NewGuid(); // TL or VP
+        var assigneeId = Guid.NewGuid(); // Some other user
+        var task = new TaskItem { Id = taskId, Title = "My Task", Status = TaskStatus.InProgress, AssigneeId = assigneeId, OrganizationUnitId = Guid.NewGuid() };
+        
+        _taskRepositoryMock.Setup(r => r.GetByIdAsync(taskId)).ReturnsAsync(task);
+        _taskRepositoryMock.Setup(r => r.UpdateAsync(task)).Returns(Task.CompletedTask);
+
+        var result = await _taskService.UpdateTaskStatusAsync(taskId, TaskStatus.WaitingForApproval, requestingUserId, true);
+
+        result.Should().NotBeNull();
+        task.Status.Should().Be(TaskStatus.WaitingForApproval);
     }
 
     [Fact]

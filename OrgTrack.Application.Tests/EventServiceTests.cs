@@ -138,6 +138,27 @@ public class EventServiceTests
     }
 
     [Fact]
+    public async Task UpdateEventAsync_ShouldSyncWithGoogleCalendar_WhenUserIsConnected()
+    {
+        var eventId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var ev = new Event { Id = eventId, Title = "Old", ExternalCalendarId = "google_id", OrganizationUnitId = Guid.NewGuid() };
+        var user = new User { Id = userId, IsGoogleCalendarConnected = true, GoogleCalendarAccessToken = "token" };
+
+        _eventRepositoryMock.Setup(r => r.GetByIdAsync(eventId)).ReturnsAsync(ev);
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+        _unitRepositoryMock.Setup(r => r.GetMembersForUnitsAsync(It.IsAny<IEnumerable<Guid>>())).ReturnsAsync(new List<UserUnitRole>());
+        _unitRepositoryMock.Setup(r => r.GetDescendantUnitIdsAsync(It.IsAny<Guid>())).ReturnsAsync(new HashSet<Guid>());
+        _eventRepositoryMock.Setup(r => r.UpdateAsync(ev)).Returns(Task.CompletedTask);
+
+        var result = await _eventService.UpdateEventAsync(
+            userId, eventId, "New", "Desc", DateTime.UtcNow, DateTime.UtcNow.AddHours(1), false, null, "google_id");
+
+        result.Should().NotBeNull();
+        _googleCalendarServiceMock.Verify(r => r.UpdateEventAsync("token", "", "google_id", It.IsAny<EventCalendarData>()), Times.Once);
+    }
+
+    [Fact]
     public async Task DeleteEventAsync_ShouldThrowException_WhenEventNotFound()
     {
         var eventId = Guid.NewGuid();
@@ -146,6 +167,39 @@ public class EventServiceTests
         var action = async () => await _eventService.DeleteEventAsync(Guid.NewGuid(), eventId);
 
         await action.Should().ThrowAsync<ArgumentException>().WithMessage("Event not found.");
+    }
+
+    [Fact]
+    public async Task DeleteEventAsync_ShouldDeleteEvent()
+    {
+        var eventId = Guid.NewGuid();
+        var requesterId = Guid.NewGuid();
+        var ev = new Event { Id = eventId, Title = "To Delete", OrganizationUnitId = Guid.NewGuid() };
+
+        _eventRepositoryMock.Setup(r => r.GetByIdAsync(eventId)).ReturnsAsync(ev);
+        _eventRepositoryMock.Setup(r => r.DeleteAsync(ev)).Returns(Task.CompletedTask);
+
+        await _eventService.DeleteEventAsync(requesterId, eventId);
+
+        _eventRepositoryMock.Verify(r => r.DeleteAsync(ev), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteEventAsync_ShouldSyncWithGoogleCalendar_WhenUserIsConnected()
+    {
+        var eventId = Guid.NewGuid();
+        var requesterId = Guid.NewGuid();
+        var ev = new Event { Id = eventId, Title = "To Delete", ExternalCalendarId = "google_id", OrganizationUnitId = Guid.NewGuid() };
+        var user = new User { Id = requesterId, IsGoogleCalendarConnected = true, GoogleCalendarAccessToken = "token" };
+
+        _eventRepositoryMock.Setup(r => r.GetByIdAsync(eventId)).ReturnsAsync(ev);
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(requesterId)).ReturnsAsync(user);
+        _eventRepositoryMock.Setup(r => r.DeleteAsync(ev)).Returns(Task.CompletedTask);
+
+        await _eventService.DeleteEventAsync(requesterId, eventId);
+
+        _googleCalendarServiceMock.Verify(r => r.DeleteEventAsync("token", "", "google_id"), Times.Once);
+        _eventRepositoryMock.Verify(r => r.DeleteAsync(ev), Times.Once);
     }
 
     [Fact]
