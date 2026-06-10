@@ -11,6 +11,6 @@
 
     # 3. Serve the Vue.js SPA frontend for all other routes
     handle {
-        reverse_proxy client:80
+        reverse_proxy client:8080
     }
 }

@@ -88,17 +88,43 @@ public class TaskService(
         var task = await taskRepository.GetByIdAsync(taskId);
         if (task == null) throw new ArgumentException("Task not found.");
         
+        ValidateStatusUpdate(task, newStatus, requestingUserId, hasManagePermission);
+
+        var oldStatus = task.Status.ToString();
+        task.Status = newStatus;
+        task.UpdatedAt = DateTime.UtcNow;
+
+        await taskRepository.UpdateAsync(task);
+        await activityLogService.LogTaskStatusChangedAsync(
+            requestingUserId, task.Id, oldStatus, newStatus.ToString(), task.OrganizationUnitId);
+        
+        if (newStatus == TaskStatus.Done)
+        {
+            var targetUserId = task.AssigneeId ?? requestingUserId;
+            await activityLogService.LogTaskDoneAsync(targetUserId, task.Id, task.Title, task.OrganizationUnitId);
+        }
+        
+        var dto = MapToDto(task);
+
+        // Real-time: notify unit group
+        await realtimeNotifier.SendToGroupAsync($"Unit_{task.OrganizationUnitId}", "TaskUpdated", dto);
+
+        // Notifications
+        await HandleStatusUpdateNotificationsAsync(task, newStatus, requestingUserId);
+
+        return dto;
+    }
+
+    private void ValidateStatusUpdate(TaskItem task, TaskStatus newStatus, Guid requestingUserId, bool hasManagePermission)
+    {
         if (task.Status == TaskStatus.Done && newStatus != TaskStatus.Done)
         {
             throw new InvalidOperationException("Tasks marked as 'Done' can no longer be modified.");
         }
         
-        if (newStatus == TaskStatus.Done && task.CreatorId != requestingUserId)
+        if (newStatus == TaskStatus.Done && task.CreatorId != requestingUserId && task.AssigneeId == requestingUserId)
         {
-            if (task.AssigneeId == requestingUserId)
-            {
-                throw new InvalidOperationException("Only the creator of the task can approve and mark it as 'Done'. Please move it to 'Review' instead.");
-            }
+            throw new InvalidOperationException("Only the creator of the task can approve and mark it as 'Done'. Please move it to 'Review' instead.");
         }
 
         if (!hasManagePermission)
@@ -108,42 +134,27 @@ public class TaskService(
             if (newStatus == TaskStatus.Done)
                 throw new InvalidOperationException("Only the leader (TL/VP) can approve and mark a task as 'Done'. Move it to 'Review'.");
         }
+    }
 
-        var oldStatus = task.Status.ToString();
-        task.Status = newStatus;
-        task.UpdatedAt = DateTime.UtcNow;
+    private async Task HandleStatusUpdateNotificationsAsync(TaskItem task, TaskStatus newStatus, Guid requestingUserId)
+    {
+        if (!task.AssigneeId.HasValue || task.AssigneeId.Value == requestingUserId)
+            return;
 
-        await taskRepository.UpdateAsync(task);
-        await activityLogService.LogTaskStatusChangedAsync(
-            requestingUserId, task.Id, oldStatus, newStatus.ToString(), task.OrganizationUnitId);
         if (newStatus == TaskStatus.Done)
-        {
-            var targetUserId = task.AssigneeId ?? requestingUserId;
-            await activityLogService.LogTaskDoneAsync(targetUserId, task.Id, task.Title, task.OrganizationUnitId);
-        }
-        var dto = MapToDto(task);
-
-        // Real-time: notify unit group
-        await realtimeNotifier.SendToGroupAsync($"Unit_{task.OrganizationUnitId}", "TaskUpdated", dto);
-
-        // Notification: notify assignee if task moved to Done
-        if (newStatus == TaskStatus.Done && task.AssigneeId.HasValue && task.AssigneeId.Value != requestingUserId)
         {
             await notificationService.CreateAndSendAsync(
                 task.AssigneeId.Value, "TaskStatusChanged", "Task Completed",
                 $"Your task \"{task.Title}\" has been approved and marked as Done!",
                 task.Id, "Task", requestingUserId);
         }
-        // Notification: notify assignee when their task is moved to Review by leader
-        else if (newStatus == TaskStatus.WaitingForApproval && task.AssigneeId.HasValue && task.AssigneeId.Value != requestingUserId)
+        else if (newStatus == TaskStatus.WaitingForApproval)
         {
             await notificationService.CreateAndSendAsync(
                 task.AssigneeId.Value, "TaskStatusChanged", "Task Status Changed",
                 $"Your task \"{task.Title}\" was moved to Review",
                 task.Id, "Task", requestingUserId);
         }
-
-        return dto;
     }
 
     public async Task<TaskDto> UpdateTaskAsync(

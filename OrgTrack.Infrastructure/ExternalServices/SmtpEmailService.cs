@@ -25,7 +25,6 @@ public class SmtpEmailService : IEmailService
             var portString = _configuration["Smtp:Port"];
             var username = _configuration["Smtp:Username"];
             var password = _configuration["Smtp:Password"];
-            var enableSslString = _configuration["Smtp:EnableSsl"];
             var fromAddress = _configuration["Smtp:FromAddress"] ?? username;
             var fromName = _configuration["Smtp:FromName"] ?? "OrgTrack";
 
@@ -37,13 +36,11 @@ public class SmtpEmailService : IEmailService
 
             int.TryParse(portString, out int port);
             if (port == 0) port = 587;
-            
-            bool.TryParse(enableSslString, out bool enableSsl);
 
             using var client = new SmtpClient(host, port)
             {
                 Credentials = new NetworkCredential(username, password),
-                EnableSsl = enableSsl
+                EnableSsl = true
             };
 
             var mailMessage = new MailMessage

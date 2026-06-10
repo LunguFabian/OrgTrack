@@ -14,7 +14,10 @@ COPY ["OrgTrack.Infrastructure/OrgTrack.Infrastructure.csproj", "OrgTrack.Infras
 
 RUN dotnet restore "./OrgTrack.Api/OrgTrack.Api.csproj"
 
-COPY . .
+COPY OrgTrack.Api/ OrgTrack.Api/
+COPY OrgTrack.Application/ OrgTrack.Application/
+COPY OrgTrack.Domain/ OrgTrack.Domain/
+COPY OrgTrack.Infrastructure/ OrgTrack.Infrastructure/
 
 WORKDIR "/src/OrgTrack.Api"
 RUN dotnet build "./OrgTrack.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
@@ -28,4 +31,5 @@ WORKDIR /app
 
 COPY --from=publish /app/publish .
 
+USER $APP_UID
 ENTRYPOINT ["dotnet", "OrgTrack.Api.dll"]

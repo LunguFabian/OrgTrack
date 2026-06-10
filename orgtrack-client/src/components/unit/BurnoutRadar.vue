@@ -103,7 +103,7 @@ const getRiskIcon = (level: string) => {
         <div class="flex items-start justify-between mb-4">
           <div class="flex items-center gap-3">
             <div class="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
-              <img v-if="risk.pictureUrl" :src="risk.pictureUrl" class="w-full h-full object-cover" />
+              <img v-if="risk.pictureUrl" :src="risk.pictureUrl" alt="Profile" class="w-full h-full object-cover" />
               <div v-else class="w-full h-full flex items-center justify-center text-zinc-400 font-medium">
                 {{ risk.userName.charAt(0) }}
               </div>

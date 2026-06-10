@@ -82,7 +82,7 @@ const closeDrawer = () => {
             >
               <div class="relative shrink-0">
                 <div v-if="conv.otherUserProfilePictureUrl" class="w-12 h-12 rounded-full overflow-hidden border border-border">
-                  <img :src="conv.otherUserProfilePictureUrl" alt="Profile Picture" class="w-full h-full object-cover" />
+                  <img :src="conv.otherUserProfilePictureUrl" alt="Profile" class="w-full h-full object-cover" />
                 </div>
                 <div v-else class="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg border border-emerald-500/30">
                   {{ conv.otherUserName.substring(0, 2).toUpperCase() }}
@@ -115,7 +115,7 @@ const closeDrawer = () => {
           
           <div class="flex items-center gap-3 flex-1 min-w-0">
             <div class="w-10 h-10 shrink-0 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm border border-emerald-500/30 overflow-hidden">
-              <img v-if="getOtherUser()?.otherUserProfilePictureUrl" :src="getOtherUser()?.otherUserProfilePictureUrl" alt="Profile Picture" class="w-full h-full object-cover" />
+              <img v-if="getOtherUser()?.otherUserProfilePictureUrl" :src="getOtherUser()?.otherUserProfilePictureUrl" alt="Profile" class="w-full h-full object-cover" />
               <span v-else>{{ getOtherUser()?.otherUserName.substring(0, 2).toUpperCase() || '?' }}</span>
             </div>
             <div class="min-w-0">

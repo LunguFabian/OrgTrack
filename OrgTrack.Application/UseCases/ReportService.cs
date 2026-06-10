@@ -52,7 +52,22 @@ public class ReportService
     {
         using var workbook = new XLWorkbook();
         
-        // Sheet 1: Summary
+        GenerateExcelSummarySheet(workbook, summary);
+        GenerateExcelLeaderboardSheet(workbook, scores, showUnitColumn);
+        GenerateExcelLogSheet(workbook, summary);
+        
+        if (burnoutRisks.Any())
+        {
+            GenerateExcelBurnoutSheet(workbook, burnoutRisks);
+        }
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    private void GenerateExcelSummarySheet(XLWorkbook workbook, UnitActivitySummaryDto summary)
+    {
         var wsSummary = workbook.Worksheets.Add("Summary");
         wsSummary.Cell("A1").Value = "OrgTrack Activity Report";
         wsSummary.Cell("A1").Style.Font.Bold = true;
@@ -77,64 +92,54 @@ public class ReportService
         wsSummary.Cell("B9").Value = summary.MembersActive;
 
         wsSummary.Columns().AdjustToContents();
+    }
 
-        // Sheet 2: Leaderboard
+    private void GenerateExcelLeaderboardSheet(XLWorkbook workbook, List<MemberActivityScoreDto> scores, bool showUnitColumn)
+    {
         var wsLeaderboard = workbook.Worksheets.Add("Leaderboard");
         wsLeaderboard.Cell("A1").Value = "Rank";
         wsLeaderboard.Cell("B1").Value = "Name";
+        wsLeaderboard.Cell("C1").Value = "Role";
+
+        int dataStartCol = 4;
         if (showUnitColumn)
         {
-            wsLeaderboard.Cell("C1").Value = "Role";
             wsLeaderboard.Cell("D1").Value = "Unit";
-            wsLeaderboard.Cell("E1").Value = "Tasks Done";
-            wsLeaderboard.Cell("F1").Value = "Events Attended";
-            wsLeaderboard.Cell("G1").Value = "Total Score";
-            var headerRange = wsLeaderboard.Range("A1:G1");
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml(_primaryColor);
-            headerRange.Style.Font.FontColor = XLColor.White;
-            
-            int row = 2;
-            int rank = 1;
-            foreach (var score in scores.OrderByDescending(s => s.TotalScore))
-            {
-                wsLeaderboard.Cell(row, 1).Value = rank++;
-                wsLeaderboard.Cell(row, 2).Value = score.UserName;
-                wsLeaderboard.Cell(row, 3).Value = score.RoleName;
-                wsLeaderboard.Cell(row, 4).Value = score.UnitName;
-                wsLeaderboard.Cell(row, 5).Value = score.TasksDone;
-                wsLeaderboard.Cell(row, 6).Value = score.EventsAttended;
-                wsLeaderboard.Cell(row, 7).Value = score.TotalScore;
-                row++;
-            }
+            dataStartCol = 5;
         }
-        else
+
+        wsLeaderboard.Cell(1, dataStartCol).Value = "Tasks Done";
+        wsLeaderboard.Cell(1, dataStartCol + 1).Value = "Events Attended";
+        wsLeaderboard.Cell(1, dataStartCol + 2).Value = "Total Score";
+
+        var headerRange = wsLeaderboard.Range(1, 1, 1, dataStartCol + 2);
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml(_primaryColor);
+        headerRange.Style.Font.FontColor = XLColor.White;
+        
+        int row = 2;
+        int rank = 1;
+        foreach (var score in scores.OrderByDescending(s => s.TotalScore))
         {
-            wsLeaderboard.Cell("C1").Value = "Role";
-            wsLeaderboard.Cell("D1").Value = "Tasks Done";
-            wsLeaderboard.Cell("E1").Value = "Events Attended";
-            wsLeaderboard.Cell("F1").Value = "Total Score";
-            var headerRange = wsLeaderboard.Range("A1:F1");
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml(_primaryColor);
-            headerRange.Style.Font.FontColor = XLColor.White;
+            wsLeaderboard.Cell(row, 1).Value = rank++;
+            wsLeaderboard.Cell(row, 2).Value = score.UserName;
+            wsLeaderboard.Cell(row, 3).Value = score.RoleName;
             
-            int row = 2;
-            int rank = 1;
-            foreach (var score in scores.OrderByDescending(s => s.TotalScore))
+            if (showUnitColumn)
             {
-                wsLeaderboard.Cell(row, 1).Value = rank++;
-                wsLeaderboard.Cell(row, 2).Value = score.UserName;
-                wsLeaderboard.Cell(row, 3).Value = score.RoleName;
-                wsLeaderboard.Cell(row, 4).Value = score.TasksDone;
-                wsLeaderboard.Cell(row, 5).Value = score.EventsAttended;
-                wsLeaderboard.Cell(row, 6).Value = score.TotalScore;
-                row++;
+                wsLeaderboard.Cell(row, 4).Value = score.UnitName;
             }
+
+            wsLeaderboard.Cell(row, dataStartCol).Value = score.TasksDone;
+            wsLeaderboard.Cell(row, dataStartCol + 1).Value = score.EventsAttended;
+            wsLeaderboard.Cell(row, dataStartCol + 2).Value = score.TotalScore;
+            row++;
         }
         wsLeaderboard.Columns().AdjustToContents();
+    }
 
-        // Sheet 3: Activity Log
+    private void GenerateExcelLogSheet(XLWorkbook workbook, UnitActivitySummaryDto summary)
+    {
         var wsLog = workbook.Worksheets.Add("Activity Log");
         wsLog.Cell("A1").Value = "Timestamp (UTC)";
         wsLog.Cell("B1").Value = "Action";
@@ -158,34 +163,29 @@ public class ReportService
             logRow++;
         }
         wsLog.Columns().AdjustToContents();
+    }
 
-        // Sheet 4: Burnout Risks
-        if (burnoutRisks.Any())
+    private void GenerateExcelBurnoutSheet(XLWorkbook workbook, List<BurnoutRiskDto> burnoutRisks)
+    {
+        var wsBurnout = workbook.Worksheets.Add("Burnout Analysis");
+        wsBurnout.Cell("A1").Value = "Member Name";
+        wsBurnout.Cell("B1").Value = "Risk Level";
+        wsBurnout.Cell("C1").Value = "Primary Risk Factor";
+        
+        var burnoutHeader = wsBurnout.Range("A1:C1");
+        burnoutHeader.Style.Font.Bold = true;
+        burnoutHeader.Style.Fill.BackgroundColor = XLColor.FromHtml("#ef4444");
+        burnoutHeader.Style.Font.FontColor = XLColor.White;
+
+        int bRow = 2;
+        foreach (var risk in burnoutRisks.OrderByDescending(r => GetRiskWeight(r.RiskLevel)))
         {
-            var wsBurnout = workbook.Worksheets.Add("Burnout Analysis");
-            wsBurnout.Cell("A1").Value = "Member Name";
-            wsBurnout.Cell("B1").Value = "Risk Level";
-            wsBurnout.Cell("C1").Value = "Primary Risk Factor";
-            
-            var burnoutHeader = wsBurnout.Range("A1:C1");
-            burnoutHeader.Style.Font.Bold = true;
-            burnoutHeader.Style.Fill.BackgroundColor = XLColor.FromHtml("#ef4444"); // Red-500
-            burnoutHeader.Style.Font.FontColor = XLColor.White;
-
-            int bRow = 2;
-            foreach (var risk in burnoutRisks.OrderByDescending(r => r.RiskLevel == "Critical" ? 3 : r.RiskLevel == "High" ? 2 : 1))
-            {
-                wsBurnout.Cell(bRow, 1).Value = risk.UserName;
-                wsBurnout.Cell(bRow, 2).Value = risk.RiskLevel;
-                wsBurnout.Cell(bRow, 3).Value = risk.WarningFlags.FirstOrDefault() ?? "Unknown";
-                bRow++;
-            }
-            wsBurnout.Columns().AdjustToContents();
+            wsBurnout.Cell(bRow, 1).Value = risk.UserName;
+            wsBurnout.Cell(bRow, 2).Value = risk.RiskLevel;
+            wsBurnout.Cell(bRow, 3).Value = risk.WarningFlags.FirstOrDefault() ?? "Unknown";
+            bRow++;
         }
-
-        using var stream = new MemoryStream();
-        workbook.SaveAs(stream);
-        return stream.ToArray();
+        wsBurnout.Columns().AdjustToContents();
     }
 
     private void ComposeHeader(IContainer container, UnitActivitySummaryDto summary)
@@ -246,9 +246,9 @@ public class ReportService
                 header.Cell().BorderBottom(2).BorderColor("#ef4444").PaddingBottom(5).Text("Primary Trigger").SemiBold();
             });
 
-            foreach (var risk in burnoutRisks.OrderByDescending(r => r.RiskLevel == "Critical" ? 3 : r.RiskLevel == "High" ? 2 : 1))
+            foreach (var risk in burnoutRisks.OrderByDescending(r => GetRiskWeight(r.RiskLevel)))
             {
-                var riskColor = risk.RiskLevel == "Critical" ? "#dc2626" : (risk.RiskLevel == "High" ? "#ea580c" : "#ca8a04");
+                var riskColor = GetRiskColorCode(risk.RiskLevel);
                 
                 table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(risk.UserName).FontSize(11).SemiBold();
                 table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(risk.RiskLevel.ToUpper()).FontSize(10).SemiBold().FontColor(riskColor);
@@ -256,6 +256,20 @@ public class ReportService
             }
         });
     }
+
+    private int GetRiskWeight(string level) => level switch
+    {
+        "Critical" => 3,
+        "High" => 2,
+        _ => 1
+    };
+
+    private string GetRiskColorCode(string level) => level switch
+    {
+        "Critical" => "#dc2626",
+        "High" => "#ea580c",
+        _ => "#ca8a04"
+    };
 
     private void ComposeSummaryStats(ColumnDescriptor column, UnitActivitySummaryDto summary)
     {
