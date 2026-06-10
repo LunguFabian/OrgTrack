@@ -4,6 +4,7 @@ import { Plus, ListTodo, Loader2, ClipboardCheck, CheckCircle2 } from 'lucide-vu
 import { tasksService } from '../../api/services/tasks.service';
 import { organizationService } from '../../api/services/organization.service';
 import { signalrService } from '../../api/services/signalr.service';
+import { analyticsService, type BurnoutRiskDto } from '../../api/services/analytics.service';
 import { useToastStore } from '../../stores/toastStore';
 import { useAuthStore } from '../../stores/authStore';
 import type { TaskDto, UnitMemberDto, WorkloadScoreDto } from '../../types/unit';
@@ -26,6 +27,7 @@ const props = withDefaults(defineProps<{
 const tasks = ref<TaskDto[]>([]);
 const myUnits = ref<OrganizationUnitDto[]>([]);
 const workloadScores = ref<WorkloadScoreDto[]>([]);
+const burnoutRisks = ref<BurnoutRiskDto[]>([]);
 const isLoadingWorkload = ref(false);
 
 const isLoading = ref(true);
@@ -214,6 +216,10 @@ const isTaskModalOpen = ref(false);
 const isEditingTask = ref(false);
 const editingTaskId = ref<string | null>(null);
 
+const showBurnoutWarning = ref(false);
+const pendingTaskPayload = ref<any>(null);
+const burnoutWarningDetails = ref<{ name: string; risk: string } | null>(null);
+
 const isCreating = ref(false);
 const createError = ref('');
 const taskForm = ref({
@@ -282,9 +288,14 @@ const openEditModal = async (task: TaskDto) => {
 const fetchWorkload = async (unitId: string) => {
   isLoadingWorkload.value = true;
   try {
-    workloadScores.value = await tasksService.getUnitWorkload(unitId);
+    const [scores, risks] = await Promise.all([
+      tasksService.getUnitWorkload(unitId),
+      analyticsService.getBurnoutRisks(unitId)
+    ]);
+    workloadScores.value = scores;
+    burnoutRisks.value = risks;
   } catch (err) {
-    console.error('Failed to fetch workload', err);
+    console.error('Failed to fetch workload or burnout risks', err);
   } finally {
     isLoadingWorkload.value = false;
   }
@@ -314,11 +325,20 @@ const getMedalForUser = (userId: string): string => {
   return '';
 };
 
+const getBurnoutIcon = (userId: string): string => {
+  const risk = burnoutRisks.value.find(r => r.userId === userId);
+  if (!risk || risk.riskLevel === 'Healthy') return '';
+  return '⚠️ '; // Warning emoji for at-risk members
+};
+
 const getWorkloadTooltip = (userId: string) => {
   const ws = workloadScores.value.find(w => w.userId === userId);
-  if (!ws) return '';
+  const risk = burnoutRisks.value.find(r => r.userId === userId);
+  const riskText = risk && risk.riskLevel !== 'Healthy' ? ` | Burnout Risk: ${risk.riskLevel}` : '';
+  
+  if (!ws) return riskText ? `Warning: ${riskText}` : '';
   const reliability = (ws.reliabilityRaw * 100).toFixed(0);
-  return `#${ws.rank} | Workload: ${ws.currentWorkloadRaw.toFixed(1)} | Completion: ${ws.avgCompletionTimeRaw.toFixed(1)}d | Throughput: ${ws.throughputRaw} | Avail: ${ws.availabilityDaysRaw}d | Complexity: ${ws.complexityLoadRaw} | Reliability: ${reliability}% | Overdue: ${ws.overduePressureRaw.toFixed(1)} | Cross-Unit: ${ws.crossUnitLoadRaw}`;
+  return `#${ws.rank} | Workload: ${ws.currentWorkloadRaw.toFixed(1)} | Completion: ${ws.avgCompletionTimeRaw.toFixed(1)}d | Throughput: ${ws.throughputRaw} | Avail: ${ws.availabilityDaysRaw}d | Complexity: ${ws.complexityLoadRaw} | Reliability: ${reliability}% | Overdue: ${ws.overduePressureRaw.toFixed(1)} | Cross-Unit: ${ws.crossUnitLoadRaw}${riskText}`;
 };
 
 const handleSubtaskStatusChange = async (subTask: TaskDto, newStatus: string) => {
@@ -382,20 +402,55 @@ const submitTask = async () => {
     return;
   }
   
+  // Check Burnout Risk warning
+  if (taskForm.value.assigneeId) {
+    const assigneeRisk = burnoutRisks.value.find(r => r.userId === taskForm.value.assigneeId);
+    if (assigneeRisk && assigneeRisk.riskLevel !== 'Healthy') {
+      burnoutWarningDetails.value = {
+        name: `${taskForm.value.assigneeId === authStore.user?.id ? 'You' : assigneeRisk.userName}`,
+        risk: assigneeRisk.riskLevel
+      };
+      
+      const payload = {
+        title: taskForm.value.title,
+        description: taskForm.value.description,
+        priority: taskForm.value.priority,
+        assigneeId: taskForm.value.assigneeId || null,
+        deadline: taskForm.value.deadline ? new Date(taskForm.value.deadline).toISOString() : null,
+        parentTaskId: taskForm.value.parentTaskId,
+        status: taskForm.value.status
+      };
+      
+      pendingTaskPayload.value = payload;
+      showBurnoutWarning.value = true;
+      return; // Wait for confirmation
+    }
+  }
+
+  await executeTaskSubmission({
+    title: taskForm.value.title,
+    description: taskForm.value.description,
+    priority: taskForm.value.priority,
+    assigneeId: taskForm.value.assigneeId || null,
+    deadline: taskForm.value.deadline ? new Date(taskForm.value.deadline).toISOString() : null,
+    parentTaskId: taskForm.value.parentTaskId,
+    status: taskForm.value.status
+  });
+};
+
+const confirmBurnoutTask = async () => {
+  showBurnoutWarning.value = false;
+  if (pendingTaskPayload.value) {
+    await executeTaskSubmission(pendingTaskPayload.value);
+    pendingTaskPayload.value = null;
+  }
+};
+
+const executeTaskSubmission = async (payload: any) => {
   createError.value = '';
   isCreating.value = true;
   
   try {
-    const payload = {
-      title: taskForm.value.title,
-      description: taskForm.value.description,
-      priority: taskForm.value.priority,
-      assigneeId: taskForm.value.assigneeId || null,
-      deadline: taskForm.value.deadline ? new Date(taskForm.value.deadline).toISOString() : null,
-      parentTaskId: taskForm.value.parentTaskId,
-      status: taskForm.value.status
-    };
-    
     if (isEditingTask.value && editingTaskId.value) {
       await handleUpdateTask(payload);
     } else {
@@ -567,8 +622,9 @@ const submitTask = async () => {
                   :key="member.userId" 
                   :value="member.userId"
                   :title="getWorkloadTooltip(member.userId)"
+                  :class="{ 'text-orange-400 font-semibold': getBurnoutIcon(member.userId) }"
                 >
-                  {{ getMedalForUser(member.userId) }}{{ member.firstName }} {{ member.lastName }}
+                  {{ getMedalForUser(member.userId) }}{{ getBurnoutIcon(member.userId) }}{{ member.firstName }} {{ member.lastName }}
                 </option>
                 <option v-if="props.mode === 'me'" :value="authStore.user?.id">Me ({{ authStore.user?.firstName }})</option>
               </select>
@@ -636,6 +692,37 @@ const submitTask = async () => {
           >
             <span v-if="isCreating" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
             {{ isEditingTask ? 'Save Changes' : 'Create Task' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Burnout Warning Modal -->
+    <div v-if="showBurnoutWarning" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+      <div class="bg-surface border border-orange-500/30 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl shadow-orange-500/10 flex flex-col transform transition-all">
+        <div class="p-6 text-center space-y-4">
+          <div class="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-2">
+            <span class="text-3xl">⚠️</span>
+          </div>
+          <h3 class="text-xl font-bold text-text-strong">Burnout Risk Alert</h3>
+          <p class="text-sm text-text-muted leading-relaxed">
+            <span class="font-semibold text-orange-400">{{ burnoutWarningDetails?.name }}</span> is currently at a 
+            <span class="font-semibold text-orange-400">"{{ burnoutWarningDetails?.risk }}"</span> burnout risk level.
+          </p>
+          <p class="text-xs text-text-muted bg-bg p-3 rounded-xl border border-border">
+            Assigning additional workload could exacerbate their stress and reduce overall team efficiency. Please consider reassigning this task.
+          </p>
+        </div>
+        
+        <div class="p-4 border-t border-border flex items-center gap-3 bg-bg/50">
+          <button @click="showBurnoutWarning = false" class="flex-1 py-2.5 bg-surface border border-border hover:bg-bg text-text-strong text-sm font-medium rounded-xl transition-colors">
+            Cancel
+          </button>
+          <button 
+            @click="confirmBurnoutTask" 
+            class="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20"
+          >
+            Assign Anyway
           </button>
         </div>
       </div>
