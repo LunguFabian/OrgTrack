@@ -99,7 +99,7 @@ public class EventsControllerTests : IntegrationTestBase
             eventId = ev.Id;
         });
 
-        var rsvpReq = new RsvpRequest(PresenceStatus.Present);
+        var rsvpReq = new RsvpRequest(RsvpStatus.Going);
 
         // Act
         var response = await Client.PostAsJsonAsync($"/api/organization/units/{unitId}/events/{eventId}/rsvp", rsvpReq);

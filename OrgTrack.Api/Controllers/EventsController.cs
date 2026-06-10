@@ -141,7 +141,7 @@ public class EventsController(
 
         try
         {
-            await eventService.RsvpAsync(eventId, userId, request.Status);
+            await eventService.SetRsvpAsync(eventId, userId, request.Status);
             return Ok(new { message = "Your RSVP has been recorded." });
         }
         catch (ArgumentException ex)
@@ -151,7 +151,7 @@ public class EventsController(
     }
 
     [HttpPost("{eventId:guid}/attendance/{targetUserId:guid}")]
-    public async Task<IActionResult> ConfirmAttendance(Guid unitId, Guid eventId, Guid targetUserId, [FromBody] RsvpRequest request)
+    public async Task<IActionResult> ConfirmAttendance(Guid unitId, Guid eventId, Guid targetUserId, [FromBody] AttendanceRequest request)
     {
         var currentUserId = User.GetUserId();
         if (!await permissionService.HasPermissionAsync(currentUserId, unitId, Permissions.EventsManage))
@@ -161,7 +161,7 @@ public class EventsController(
 
         try
         {
-            await eventService.RsvpAsync(eventId, targetUserId, request.Status);
+            await eventService.SetAttendanceAsync(eventId, targetUserId, request.Status);
             return Ok(new { message = "Attendance updated by leader." });
         }
         catch (ArgumentException ex)
@@ -183,6 +183,30 @@ public class EventsController(
         {
             var report = await eventService.GetAttendanceReportAsync(eventId);
             return Ok(report);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("{eventId:guid}/rsvp-summary")]
+    public async Task<IActionResult> GetRsvpSummary(Guid unitId, Guid eventId)
+    {
+        var userId = User.GetUserId();
+        bool canView = await permissionService.HasPermissionAsync(userId, unitId, Permissions.EventsView)
+            || await permissionService.IsDirectMemberAsync(userId, unitId)
+            || await eventService.IsUserEligibleForEventAsync(eventId, userId);
+
+        if (!canView)
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var summary = await eventService.GetRsvpSummaryAsync(eventId);
+            return Ok(summary);
         }
         catch (ArgumentException ex)
         {

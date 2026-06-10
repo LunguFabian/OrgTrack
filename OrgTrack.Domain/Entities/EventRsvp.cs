@@ -9,5 +9,13 @@ public class EventRsvp : BaseEntity
     public Guid UserId { get; set; }
     public User? User { get; set; }
 
-    public PresenceStatus Status { get; set; } = PresenceStatus.Unknown;
+    /// <summary>
+    /// Member's self-declared intention BEFORE the event (Going / Maybe / NotGoing).
+    /// </summary>
+    public RsvpStatus Rsvp { get; set; } = RsvpStatus.NoResponse;
+
+    /// <summary>
+    /// Leader-confirmed attendance AFTER the event (Present / Absent / Excused).
+    /// </summary>
+    public AttendanceStatus Attendance { get; set; } = AttendanceStatus.Unmarked;
 }

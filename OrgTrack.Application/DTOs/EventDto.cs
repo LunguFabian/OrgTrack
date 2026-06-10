@@ -20,5 +20,8 @@ public record EventDto(
 public record AttendanceReportItemDto(
     Guid UserId,
     string UserName,
-    string Status
+    string Rsvp,
+    string Attendance
 );
+
+public record RsvpSummaryItemDto(Guid UserId, string UserName, string Rsvp);

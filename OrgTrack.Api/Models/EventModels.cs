@@ -16,7 +16,11 @@ public record CreateEventRequest(
 );
 
 public record RsvpRequest(
-    [property: JsonRequired] PresenceStatus Status
+    [property: JsonRequired] RsvpStatus Status
+);
+
+public record AttendanceRequest(
+    [property: JsonRequired] AttendanceStatus Status
 );
 
 public record UpdateEventRequest(

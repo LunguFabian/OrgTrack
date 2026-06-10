@@ -27,7 +27,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Default=Host=db;Database=orgtrack;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - FRONTEND_URL=https://orgtrack.duckdns.org
+      - FRONTEND_URL=${FRONTEND_URL}
       - Google__ClientId=${VITE_GOOGLE_CLIENT_ID}
       - Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
       - Jwt__Secret=${JWT_SECRET}
@@ -55,7 +55,7 @@ services:
     container_name: orgtrack_caddy
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "3000:80"
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile

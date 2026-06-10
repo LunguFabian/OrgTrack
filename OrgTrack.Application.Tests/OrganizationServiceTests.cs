@@ -23,7 +23,7 @@ public class OrganizationServiceTests
         _roleRepositoryMock = new Mock<IRoleRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
         _activityLogRepositoryMock = new Mock<IActivityLogRepository>();
-        _activityLogService = new ActivityLogService(_activityLogRepositoryMock.Object);
+        _activityLogService = new ActivityLogService(_activityLogRepositoryMock.Object, new Mock<IUserRepository>().Object);
 
         _organizationService = new OrganizationService(
             _unitRepositoryMock.Object,

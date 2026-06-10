@@ -148,7 +148,8 @@ public class OrgTrackDbContext : DbContext
         modelBuilder.Entity<OrganizationUnit>().Property(e => e.DepartmentType).HasConversion<string>();
         modelBuilder.Entity<TaskItem>().Property(e => e.Status).HasConversion<string>();
         modelBuilder.Entity<TaskItem>().Property(e => e.Priority).HasConversion<string>();
-        modelBuilder.Entity<EventRsvp>().Property(e => e.Status).HasConversion<string>();
+        modelBuilder.Entity<EventRsvp>().Property(e => e.Rsvp).HasConversion<string>();
+        modelBuilder.Entity<EventRsvp>().Property(e => e.Attendance).HasConversion<string>();
 
         modelBuilder.Entity<Notification>()
             .HasOne(n => n.User)

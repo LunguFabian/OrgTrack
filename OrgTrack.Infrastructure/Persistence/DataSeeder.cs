@@ -292,25 +292,25 @@ public static class DataSeeder
 
         // RSVPS
         context.EventRsvps.AddRange(
-            new EventRsvp { EventId = ev0.Id, UserId = admin.Id, Status = PresenceStatus.Present },
-            new EventRsvp { EventId = ev2.Id, UserId = admin.Id, Status = PresenceStatus.Present },
-            new EventRsvp { EventId = ev3.Id, UserId = admin.Id, Status = PresenceStatus.Present },
-            new EventRsvp { EventId = ev5.Id, UserId = admin.Id, Status = PresenceStatus.Maybe },
+            new EventRsvp { EventId = ev0.Id, UserId = admin.Id, Rsvp = RsvpStatus.Going, Attendance = AttendanceStatus.Present },
+            new EventRsvp { EventId = ev2.Id, UserId = admin.Id, Rsvp = RsvpStatus.Going },
+            new EventRsvp { EventId = ev3.Id, UserId = admin.Id, Rsvp = RsvpStatus.Going },
+            new EventRsvp { EventId = ev5.Id, UserId = admin.Id, Rsvp = RsvpStatus.Maybe },
             
-            new EventRsvp { EventId = ev1.Id, UserId = lcpIasi.Id, Status = PresenceStatus.Present },
-            new EventRsvp { EventId = ev1.Id, UserId = vpMktIasi.Id, Status = PresenceStatus.Present },
-            new EventRsvp { EventId = ev1.Id, UserId = memB2c1.Id, Status = PresenceStatus.Absent },
-            new EventRsvp { EventId = ev1.Id, UserId = memB2c2.Id, Status = PresenceStatus.Present },
-            new EventRsvp { EventId = ev1.Id, UserId = memB2c3.Id, Status = PresenceStatus.Maybe },
+            new EventRsvp { EventId = ev1.Id, UserId = lcpIasi.Id, Rsvp = RsvpStatus.Going },
+            new EventRsvp { EventId = ev1.Id, UserId = vpMktIasi.Id, Rsvp = RsvpStatus.Going },
+            new EventRsvp { EventId = ev1.Id, UserId = memB2c1.Id, Rsvp = RsvpStatus.Going },
+            new EventRsvp { EventId = ev1.Id, UserId = memB2c2.Id, Rsvp = RsvpStatus.Going },
+            new EventRsvp { EventId = ev1.Id, UserId = memB2c3.Id, Rsvp = RsvpStatus.Maybe },
 
-            new EventRsvp { EventId = ev2.Id, UserId = lcpIasi.Id, Status = PresenceStatus.Present },
-            new EventRsvp { EventId = ev2.Id, UserId = lcpBucharest.Id, Status = PresenceStatus.Present },
-            new EventRsvp { EventId = ev2.Id, UserId = lcpCluj.Id, Status = PresenceStatus.Present },
+            new EventRsvp { EventId = ev2.Id, UserId = lcpIasi.Id, Rsvp = RsvpStatus.Going },
+            new EventRsvp { EventId = ev2.Id, UserId = lcpBucharest.Id, Rsvp = RsvpStatus.Going },
+            new EventRsvp { EventId = ev2.Id, UserId = lcpCluj.Id, Rsvp = RsvpStatus.Going },
 
             // BURNOUT TARGET RSVPS
-            new EventRsvp { EventId = evPast1.Id, UserId = memB2c1.Id, Status = PresenceStatus.Absent },
-            new EventRsvp { EventId = evPast2.Id, UserId = memB2c1.Id, Status = PresenceStatus.Absent },
-            new EventRsvp { EventId = evPast3.Id, UserId = memB2c1.Id, Status = PresenceStatus.Absent }
+            new EventRsvp { EventId = evPast1.Id, UserId = memB2c1.Id, Rsvp = RsvpStatus.Going, Attendance = AttendanceStatus.Absent },
+            new EventRsvp { EventId = evPast2.Id, UserId = memB2c1.Id, Rsvp = RsvpStatus.Going, Attendance = AttendanceStatus.Absent },
+            new EventRsvp { EventId = evPast3.Id, UserId = memB2c1.Id, Rsvp = RsvpStatus.Going, Attendance = AttendanceStatus.Absent }
         );
         await context.SaveChangesAsync();
 

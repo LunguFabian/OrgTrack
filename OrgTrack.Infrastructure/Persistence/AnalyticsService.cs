@@ -19,10 +19,8 @@ public class AnalyticsService(
     {
         var logs = await activityLogRepository.GetByUserIdAsync(userId, limit: 1000);
 
-        var tasksDone = logs.Count(l => l.Action == ActivityLogService.ActionTaskDone);
-        var eventsAttended = logs.Count(l =>
-            l.Action == ActivityLogService.ActionAttendanceConfirmed &&
-            l.Details != null && l.Details.Contains("Present"));
+        var tasksDone = await context.Tasks.CountAsync(t => t.AssigneeId == userId && t.Status == TaskStatus.Done);
+        var eventsAttended = await context.EventRsvps.CountAsync(r => r.UserId == userId && r.Attendance == OrgTrack.Domain.Enums.AttendanceStatus.Present);
         var user = await context.Users.FindAsync(userId);
         var name = user != null ? $"{user.FirstName} {user.LastName}".Trim() : "Unknown";
 
@@ -191,7 +189,7 @@ public class AnalyticsService(
             int consecutiveAbsences = 0;
             foreach(var rsvp in rsvps)
             {
-                if (rsvp.Status == OrgTrack.Domain.Enums.PresenceStatus.Absent) consecutiveAbsences++;
+                if (rsvp.Attendance == OrgTrack.Domain.Enums.AttendanceStatus.Absent) consecutiveAbsences++;
                 else break; // Streak broken
             }
             double f5Score = Math.Min(100, consecutiveAbsences * 33.3); // 3 absences = 100 score

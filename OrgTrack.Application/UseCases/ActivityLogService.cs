@@ -9,7 +9,7 @@ namespace OrgTrack.Application.UseCases;
 /// Helper methods (LogTaskCompleted, LogAttendanceConfirmed, etc.) 
 /// provide a clear API and prevent typos on Action strings.
 /// </summary>
-public class ActivityLogService(IActivityLogRepository activityLogRepository)
+public class ActivityLogService(IActivityLogRepository activityLogRepository, IUserRepository userRepository)
 {
     public const string ActionTaskCreated          = "TaskCreated";
     public const string ActionTaskStatusChanged    = "TaskStatusChanged";
@@ -32,21 +32,30 @@ public class ActivityLogService(IActivityLogRepository activityLogRepository)
         => WriteLog(actorId, ActionTaskDone, "TaskItem", taskId, unitId,
             $"Task completed: \"{taskTitle}\"");
 
-    public Task LogMemberJoinedAsync(Guid actorId, Guid newMemberId, Guid unitId)
-        => WriteLog(actorId, ActionMemberJoined, "User", newMemberId, unitId,
-            $"Member {newMemberId} was added to the unit");
+    public async Task LogMemberJoinedAsync(Guid actorId, Guid newMemberId, Guid unitId)
+    {
+        var user = await userRepository.GetByIdAsync(newMemberId);
+        var name = user != null ? $"{user.FirstName} {user.LastName}".Trim() : newMemberId.ToString();
+        await WriteLog(actorId, ActionMemberJoined, "User", newMemberId, unitId, $"Member {name} was added to the unit");
+    }
 
-    public Task LogMemberRemovedAsync(Guid actorId, Guid removedMemberId, Guid unitId)
-        => WriteLog(actorId, ActionMemberRemoved, "User", removedMemberId, unitId,
-            $"Member {removedMemberId} was removed from the unit");
+    public async Task LogMemberRemovedAsync(Guid actorId, Guid removedMemberId, Guid unitId)
+    {
+        var user = await userRepository.GetByIdAsync(removedMemberId);
+        var name = user != null ? $"{user.FirstName} {user.LastName}".Trim() : removedMemberId.ToString();
+        await WriteLog(actorId, ActionMemberRemoved, "User", removedMemberId, unitId, $"Member {name} was removed from the unit");
+    }
 
     public Task LogEventCreatedAsync(Guid actorId, Guid eventId, string eventTitle, Guid unitId)
         => WriteLog(actorId, ActionEventCreated, "Event", eventId, unitId,
             $"Event created: \"{eventTitle}\"");
 
-    public Task LogAttendanceConfirmedAsync(Guid actorId, Guid targetUserId, Guid eventId, string status, Guid unitId)
-        => WriteLog(actorId, ActionAttendanceConfirmed, "Event", eventId, unitId,
-            $"Attendance for user {targetUserId} set to: {status}");
+    public async Task LogAttendanceConfirmedAsync(Guid actorId, Guid targetUserId, Guid eventId, string status, Guid unitId)
+    {
+        var user = await userRepository.GetByIdAsync(targetUserId);
+        var name = user != null ? $"{user.FirstName} {user.LastName}".Trim() : targetUserId.ToString();
+        await WriteLog(actorId, ActionAttendanceConfirmed, "Event", eventId, unitId, $"Attendance for user {name} set to: {status}");
+    }
 
     public Task LogInviteLinkUsedAsync(Guid newMemberId, Guid unitId)
         => WriteLog(newMemberId, ActionInviteLinkUsed, "InviteLink", unitId, unitId,

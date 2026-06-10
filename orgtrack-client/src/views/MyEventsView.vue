@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { eventsService, type AttendanceReportItem } from '../api/services/events.service';
+import { eventsService, type AttendanceReportItem, type RsvpSummaryItem } from '../api/services/events.service';
 import type { EventDto } from '../types/unit';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
@@ -8,26 +8,28 @@ import { useOrgStore } from '../stores/orgStore';
 import {
   CalendarDays, Clock, Users, CheckCircle2,
   XCircle, HelpCircle, ChevronDown, ChevronUp, Loader2,
-  Calendar, Repeat, AlarmClock, Network
+  Calendar, Repeat, AlarmClock, Network, ClipboardCheck
 } from 'lucide-vue-next';
 
 const authStore = useAuthStore();
 const toastStore = useToastStore();
-const orgStore = useOrgStore(); // For resolving unit names
+const orgStore = useOrgStore();
 
 const events = ref<EventDto[]>([]);
 const isLoading = ref(true);
 const expandedEventId = ref<string | null>(null);
+const rsvpSummaries = ref<Record<string, RsvpSummaryItem[]>>({});
 const attendanceReports = ref<Record<string, AttendanceReportItem[]>>({});
-const loadingAttendance = ref<string | null>(null);
+const loadingExpanded = ref<string | null>(null);
 const rsvpLoading = ref<string | null>(null);
 const userRsvps = ref<Record<string, string>>({});
+
 const fetchEvents = async () => {
   isLoading.value = true;
   try {
     events.value = await eventsService.getMyEvents();
     events.value.forEach(e => {
-      if (e.currentUserRsvp && e.currentUserRsvp !== 'NotResponded') {
+      if (e.currentUserRsvp && e.currentUserRsvp !== 'NoResponse') {
         userRsvps.value[e.id] = e.currentUserRsvp;
       }
     });
@@ -84,6 +86,8 @@ const isTomorrow = (iso: string) => {
   return d.toDateString() === tomorrow.toDateString();
 };
 
+const isPastEvent = (iso: string) => new Date(iso) < now;
+
 const findUnitInTree = (nodes: any[], id: string): any => {
   for (const node of nodes) {
     if (node.id === id) return node;
@@ -99,32 +103,32 @@ const getUnitName = (unitId: string) => {
   const unit = findUnitInTree(orgStore.tree, unitId);
   return unit ? unit.name : 'Organization';
 };
+
+const isLeaderOfEvent = (unitId: string) => {
+  const unit = findUnitInTree(orgStore.tree, unitId);
+  if (!unit?.members) return true; // If no members info, assume higher-level access
+  const membership = unit.members.find((m: any) => m.userId === authStore.user?.id);
+  if (!membership) return true; // Not a direct member = inspecting top-down as admin/president
+  return membership.roleName !== 'Member';
+};
+
 const rsvpOptions = [
-  { status: 'Present', label: 'Going', icon: CheckCircle2, color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20' },
-  { status: 'Maybe',   label: 'Maybe',  icon: HelpCircle,   color: 'text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20' },
-  { status: 'Absent',  label: 'Not Going', icon: XCircle,   color: 'text-red-400 border-red-500/30 bg-red-500/10 hover:bg-red-500/20' },
+  { status: 'Going',    label: 'Going',     icon: CheckCircle2, color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20' },
+  { status: 'Maybe',    label: 'Maybe',     icon: HelpCircle,   color: 'text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20' },
+  { status: 'NotGoing', label: 'Not Going', icon: XCircle,      color: 'text-red-400 border-red-500/30 bg-red-500/10 hover:bg-red-500/20' },
 ];
 
-const submitRsvp = async (event: EventDto, status: 'Present' | 'Absent' | 'Maybe') => {
+const submitRsvp = async (event: EventDto, status: 'Going' | 'Maybe' | 'NotGoing') => {
   rsvpLoading.value = event.id;
   try {
     await eventsService.rsvp(event.organizationUnitId, event.id, status);
     userRsvps.value[event.id] = status;
-    toastStore.showToast(`RSVP updated: ${status === 'Present' ? 'Going!' : status === 'Absent' ? 'Not going.' : 'Maybe.'}`, 'success');
+    toastStore.showToast(`RSVP updated: ${status === 'Going' ? 'Going!' : status === 'NotGoing' ? 'Not going.' : 'Maybe.'}`, 'success');
   } catch (err: any) {
     toastStore.showToast(err.response?.data?.error || 'Failed to update RSVP.', 'error');
   } finally {
     rsvpLoading.value = null;
   }
-};
-const isLeaderOfEvent = (unitId: string) => {
-  // Check if the current user has a leader role in the event's unit by looking at the org tree members
-  const unit = findUnitInTree(orgStore.tree, unitId);
-  if (!unit?.members) return false;
-  const membership = unit.members.find((m: any) => m.userId === authStore.user?.id);
-  if (!membership) return false;
-  const role = membership.roleName || '';
-  return role.includes('President') || role.includes('VP') || role.includes('Leader');
 };
 
 const toggleExpand = async (event: EventDto) => {
@@ -133,40 +137,67 @@ const toggleExpand = async (event: EventDto) => {
     return;
   }
   expandedEventId.value = event.id;
-  
-  if (isLeaderOfEvent(event.organizationUnitId) && !attendanceReports.value[event.id]) {
-    loadingAttendance.value = event.id;
-    try {
-      attendanceReports.value[event.id] = await eventsService.getAttendanceReport(event.organizationUnitId, event.id);
-    } catch {
-    } finally {
-      loadingAttendance.value = null;
+  loadingExpanded.value = event.id;
+
+  try {
+    // Always load RSVP summary (visible to everyone)
+    if (!rsvpSummaries.value[event.id]) {
+      rsvpSummaries.value[event.id] = await eventsService.getRsvpSummary(event.organizationUnitId, event.id);
     }
+    // Load attendance report for leaders on past events
+    if (isLeaderOfEvent(event.organizationUnitId) && isPastEvent(event.startDate) && !attendanceReports.value[event.id]) {
+      attendanceReports.value[event.id] = await eventsService.getAttendanceReport(event.organizationUnitId, event.id);
+    }
+  } catch {
+  } finally {
+    loadingExpanded.value = null;
   }
 };
 
 const confirmAttendanceAsLeader = async (event: EventDto, userId: string, currentStatus: string) => {
   let nextStatus = 'Present';
   if (currentStatus === 'Present') nextStatus = 'Absent';
-  if (currentStatus === 'Absent') nextStatus = 'Maybe';
-  if (currentStatus === 'Maybe') nextStatus = 'Present';
+  if (currentStatus === 'Absent') nextStatus = 'Excused';
+  if (currentStatus === 'Excused') nextStatus = 'Unmarked';
+  if (currentStatus === 'Unmarked') nextStatus = 'Present';
 
   try {
     await eventsService.confirmAttendance(event.organizationUnitId, event.id, userId, nextStatus);
     const report = attendanceReports.value[event.id];
     const item = report.find(r => r.userId === userId);
-    if (item) item.status = nextStatus;
+    if (item) item.attendance = nextStatus;
     toastStore.showToast('Attendance updated', 'success');
   } catch (err: any) {
     toastStore.showToast(err.response?.data?.error || 'Failed to update attendance', 'error');
   }
 };
 
-const statusBadge = (status: string) => {
-  if (status === 'Present') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-  if (status === 'Absent')  return 'bg-red-500/10 text-red-400 border-red-500/20';
-  if (status === 'NotResponded') return 'bg-gray-500/10 text-text-muted border-gray-500/20';
-  return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+const rsvpBadge = (rsvp: string) => {
+  if (rsvp === 'Going') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+  if (rsvp === 'NotGoing') return 'bg-red-500/10 text-red-400 border-red-500/20';
+  if (rsvp === 'Maybe') return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+  return 'bg-gray-500/10 text-text-muted border-gray-500/20';
+};
+
+const rsvpLabel = (rsvp: string) => {
+  if (rsvp === 'Going') return 'Going';
+  if (rsvp === 'NotGoing') return 'Not Going';
+  if (rsvp === 'Maybe') return 'Maybe';
+  return 'No Response';
+};
+
+const attendanceBadge = (attendance: string) => {
+  if (attendance === 'Present') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+  if (attendance === 'Absent') return 'bg-red-500/10 text-red-400 border-red-500/20';
+  if (attendance === 'Excused') return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+  return 'bg-gray-500/10 text-text-muted border-gray-500/20';
+};
+
+const attendanceLabel = (attendance: string) => {
+  if (attendance === 'Present') return 'Present';
+  if (attendance === 'Absent') return 'Absent';
+  if (attendance === 'Excused') return 'Excused';
+  return 'Unmarked';
 };
 </script>
 
@@ -229,20 +260,17 @@ const statusBadge = (status: string) => {
               <!-- Event Card Header -->
               <div class="p-5">
                 <div class="flex items-start justify-between gap-4">
-                  <!-- Left: Date Block -->
                   <div class="flex items-start gap-4">
                     <div class="flex-shrink-0 w-14 h-14 rounded-xl bg-bg border border-border flex flex-col items-center justify-center shadow-inner">
                       <div class="text-[10px] font-bold uppercase text-text-muted tracking-wider">
                         {{ new Date(event.startDate).toLocaleString('en-GB', { month: 'short' }) }}
                       </div>
                       <div class="text-2xl font-black leading-none mt-0.5"
-                        :class="isToday(event.startDate) ? 'text-emerald-400' : 'text-text-strong'"
-                      >
+                        :class="isToday(event.startDate) ? 'text-emerald-400' : 'text-text-strong'">
                         {{ new Date(event.startDate).getDate() }}
                       </div>
                     </div>
 
-                    <!-- Content -->
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 mb-1.5 flex-wrap">
                         <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-bg text-text-muted border border-border flex items-center gap-1">
@@ -261,15 +289,9 @@ const statusBadge = (status: string) => {
                           class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-500/15 text-purple-400 border border-purple-500/20">
                           <Repeat class="w-2.5 h-2.5" /> Recurring
                         </span>
-                        <a v-if="event.externalCalendarId"
-                          :href="'https://calendar.google.com/calendar/r'" target="_blank"
-                          class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-400 border border-blue-500/20 hover:bg-blue-500/25 transition-colors cursor-pointer">
-                          <Calendar class="w-2.5 h-2.5" /> Synced to Calendar
-                        </a>
                       </div>
-                      <h4 class="text-text-strong font-semibold text-base leading-tight group-hover:text-emerald-400 transition-colors">{{ event.title }}</h4>
+                      <h4 class="text-text-strong font-semibold text-base leading-tight">{{ event.title }}</h4>
                       <p v-if="event.description" class="text-sm text-text-muted mt-1 line-clamp-2">{{ event.description }}</p>
-                      
                       <div class="flex items-center gap-4 mt-3">
                         <span class="flex items-center gap-1.5 text-xs text-text-muted font-medium">
                           <Clock class="w-3.5 h-3.5 text-text-muted" />
@@ -283,7 +305,6 @@ const statusBadge = (status: string) => {
                     </div>
                   </div>
 
-                  <!-- Right: expand -->
                   <button @click="toggleExpand(event)" class="w-8 h-8 rounded-lg bg-bg border border-border flex items-center justify-center text-text-muted hover:text-text-strong hover:border-gray-600 transition-all flex-shrink-0 mt-1">
                     <ChevronDown v-if="expandedEventId !== event.id" class="w-4 h-4" />
                     <ChevronUp v-else class="w-4 h-4" />
@@ -308,50 +329,38 @@ const statusBadge = (status: string) => {
                 </div>
               </div>
 
-              <!-- Expanded: Attendance report (leaders only) -->
+              <!-- Expanded: RSVP Summary (visible to ALL) -->
               <div v-if="expandedEventId === event.id" class="border-t border-border bg-bg p-5">
-                <div v-if="loadingAttendance === event.id" class="flex justify-center py-6">
+                <div v-if="loadingExpanded === event.id" class="flex justify-center py-6">
                   <Loader2 class="w-6 h-6 animate-spin text-text-muted" />
                 </div>
-                <template v-else-if="isLeaderOfEvent(event.organizationUnitId) && attendanceReports[event.id]">
+                <template v-else-if="rsvpSummaries[event.id]">
                   <div class="flex items-center justify-between mb-4">
                     <h5 class="text-xs font-semibold text-text-strong uppercase tracking-widest flex items-center gap-2">
-                      <Users class="w-4 h-4 text-emerald-500" /> 
-                      Attendance Report 
-                      <span class="text-text-muted font-normal normal-case tracking-normal">({{ attendanceReports[event.id].length }} members)</span>
+                      <Users class="w-4 h-4 text-emerald-500" />
+                      RSVP Summary
+                      <span class="text-text-muted font-normal normal-case tracking-normal">({{ rsvpSummaries[event.id].length }} invited)</span>
                     </h5>
-                    <span class="text-xs text-text-muted">Click on status to change</span>
                   </div>
-                  
-                  <div v-if="attendanceReports[event.id].length === 0" class="text-sm text-text-muted text-center py-4 bg-surface rounded-xl border border-border">
+                  <div v-if="rsvpSummaries[event.id].length === 0" class="text-sm text-text-muted text-center py-4 bg-surface rounded-xl border border-border">
                     No members found in this unit tree.
                   </div>
                   <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div
-                      v-for="item in attendanceReports[event.id]"
-                      :key="item.userId"
-                      class="flex items-center justify-between bg-surface border border-border rounded-lg p-2.5 transition-colors hover:border-gray-700"
-                    >
+                    <div v-for="item in rsvpSummaries[event.id]" :key="item.userId"
+                      class="flex items-center justify-between bg-surface border border-border rounded-lg p-2.5 transition-colors hover:border-gray-700">
                       <div class="flex items-center gap-3">
                         <div class="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-[10px] font-bold">
                           {{ item.userName.substring(0, 2).toUpperCase() }}
                         </div>
                         <span class="text-sm font-medium text-text">{{ item.userName }}</span>
                       </div>
-                      <button 
-                        @click="confirmAttendanceAsLeader(event, item.userId, item.status)"
-                        class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border hover:scale-105 transition-transform"
-                        :class="statusBadge(item.status)">
-                        {{ item.status === 'NotResponded' ? 'No RSVP' : item.status }}
-                      </button>
+                      <span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border"
+                        :class="rsvpBadge(item.rsvp)">
+                        {{ rsvpLabel(item.rsvp) }}
+                      </span>
                     </div>
                   </div>
                 </template>
-                <div v-else class="text-sm text-text-muted flex flex-col items-center justify-center py-6 text-center">
-                  <Users class="w-8 h-8 text-dark-border mb-3" />
-                  <p class="text-text-muted font-medium">Only leaders can view attendance</p>
-                  <p class="text-xs mt-1">If you are a leader of this unit, please check your permissions.</p>
-                </div>
               </div>
             </div>
           </div>
@@ -366,25 +375,83 @@ const statusBadge = (status: string) => {
             <div
               v-for="event in pastEvents"
               :key="event.id"
-              class="bg-surface border border-border rounded-xl p-4 opacity-75 hover:opacity-100 transition-all group"
+              class="bg-surface border border-border rounded-xl overflow-hidden opacity-75 hover:opacity-100 transition-all group"
             >
-              <div class="flex items-start justify-between">
-                <div class="flex-1 min-w-0 pr-4">
-                  <p class="text-sm font-medium text-text-muted group-hover:text-text-strong transition-colors truncate">{{ event.title }}</p>
-                  <div class="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span class="text-xs text-text-muted">{{ formatDate(event.startDate) }}</span>
-                    <span class="w-1 h-1 rounded-full bg-border"></span>
-                    <span class="text-[10px] font-medium text-text-muted truncate">{{ getUnitName(event.organizationUnitId) }}</span>
-                    <a v-if="event.externalCalendarId"
-                        :href="'https://calendar.google.com/calendar/r'" target="_blank"
-                        class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/25 transition-colors cursor-pointer">
-                        GCAL
-                    </a>
+              <div class="p-4">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1 min-w-0 pr-4">
+                    <p class="text-sm font-medium text-text-muted group-hover:text-text-strong transition-colors truncate">{{ event.title }}</p>
+                    <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <span class="text-xs text-text-muted">{{ formatDate(event.startDate) }}</span>
+                      <span class="w-1 h-1 rounded-full bg-border"></span>
+                      <span class="text-[10px] font-medium text-text-muted truncate">{{ getUnitName(event.organizationUnitId) }}</span>
+                    </div>
                   </div>
+                  <button @click="toggleExpand(event)" class="w-8 h-8 rounded-lg bg-bg border border-border flex items-center justify-center text-gray-600 hover:text-text-strong transition-colors">
+                    <ChevronDown v-if="expandedEventId !== event.id" class="w-4 h-4" />
+                    <ChevronUp v-else class="w-4 h-4" />
+                  </button>
                 </div>
-                <div class="w-8 h-8 rounded-lg bg-bg border border-border flex items-center justify-center text-gray-600">
-                  <CheckCircle2 class="w-4 h-4" />
+              </div>
+
+              <!-- Expanded: RSVP Summary + Attendance -->
+              <div v-if="expandedEventId === event.id" class="border-t border-border bg-bg p-4 space-y-4">
+                <div v-if="loadingExpanded === event.id" class="flex justify-center py-4">
+                  <Loader2 class="w-5 h-5 animate-spin text-text-muted" />
                 </div>
+                <template v-else>
+                  <!-- RSVP Summary (visible to ALL) -->
+                  <div v-if="rsvpSummaries[event.id]">
+                    <h5 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <Users class="w-3.5 h-3.5" /> RSVP Summary
+                    </h5>
+                    <div v-if="rsvpSummaries[event.id].length === 0" class="text-sm text-text-muted text-center py-2">No members found.</div>
+                    <div v-else class="grid grid-cols-1 gap-1.5">
+                      <div v-for="item in rsvpSummaries[event.id]" :key="'rsvp-'+item.userId"
+                        class="flex items-center justify-between bg-surface border border-border rounded-lg p-2">
+                        <div class="flex items-center gap-2">
+                          <div class="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+                            {{ item.userName.substring(0, 2).toUpperCase() }}
+                          </div>
+                          <span class="text-sm text-text-muted">{{ item.userName }}</span>
+                        </div>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border" :class="rsvpBadge(item.rsvp)">
+                          {{ rsvpLabel(item.rsvp) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Attendance Panel (leaders only) -->
+                  <div v-if="isLeaderOfEvent(event.organizationUnitId) && attendanceReports[event.id]">
+                    <h5 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                      <span class="flex items-center gap-2"><ClipboardCheck class="w-3.5 h-3.5" /> Confirm Attendance</span>
+                      <span class="text-[10px] normal-case text-text-muted font-normal">Click to cycle</span>
+                    </h5>
+                    <div class="grid grid-cols-1 gap-1.5">
+                      <div v-for="item in attendanceReports[event.id]" :key="'att-'+item.userId"
+                        class="flex items-center justify-between bg-surface border border-border rounded-lg p-2.5">
+                        <div class="flex items-center gap-2">
+                          <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+                            {{ item.userName.substring(0, 2).toUpperCase() }}
+                          </div>
+                          <div class="flex flex-col">
+                            <span class="text-sm text-text font-medium">{{ item.userName }}</span>
+                            <span class="text-[10px] text-text-muted">RSVP: {{ rsvpLabel(item.rsvp) }}</span>
+                          </div>
+                        </div>
+                        <button @click="confirmAttendanceAsLeader(event, item.userId, item.attendance)"
+                          class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border hover:scale-105 transition-transform"
+                          :class="attendanceBadge(item.attendance)">
+                          {{ attendanceLabel(item.attendance) }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else-if="!isLeaderOfEvent(event.organizationUnitId)" class="text-xs text-text-muted text-center py-2">
+                    Attendance confirmation is managed by your team leader.
+                  </div>
+                </template>
               </div>
             </div>
           </div>

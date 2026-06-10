@@ -21,7 +21,7 @@ public class InviteLinkServiceTests
         _roleRepositoryMock = new Mock<IRoleRepository>();
         
         var activityLogRepoMock = new Mock<IActivityLogRepository>();
-        var activityLogService = new ActivityLogService(activityLogRepoMock.Object);
+        var activityLogService = new ActivityLogService(activityLogRepoMock.Object, new Mock<IUserRepository>().Object);
 
         _inviteLinkService = new InviteLinkService(
             _inviteLinkRepositoryMock.Object,

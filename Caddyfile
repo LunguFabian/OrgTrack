@@ -1,4 +1,4 @@
-orgtrack.duckdns.org {
+:80 {
     # 1. Reverse proxy for SignalR Websockets
     handle /hubs/* {
         reverse_proxy api:8080

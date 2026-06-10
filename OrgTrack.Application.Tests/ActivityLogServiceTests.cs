@@ -15,7 +15,7 @@ public class ActivityLogServiceTests
     public ActivityLogServiceTests()
     {
         _activityLogRepositoryMock = new Mock<IActivityLogRepository>();
-        _activityLogService = new ActivityLogService(_activityLogRepositoryMock.Object);
+        _activityLogService = new ActivityLogService(_activityLogRepositoryMock.Object, new Mock<IUserRepository>().Object);
     }
 
     [Fact]

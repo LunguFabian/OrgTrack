@@ -150,13 +150,17 @@ public class AnalyticsController(
             var unit = await organizationService.GetUnitByIdAsync(unitId);
             bool showUnitColumn = unit != null && (unit.Type == "Committee" || unit.Type == "Department");
 
+            // Fetch burnout risks for all unit members
+            var risks = await analyticsService.GetHierarchicalBurnoutRisksAsync(userId, unitId);
+            var actualRisks = risks.Where(r => r.RiskLevel != "Healthy").ToList();
+
             if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
             {
-                var excelBytes = reportService.GenerateExcelReportAsync(summary, scores, showUnitColumn);
+                var excelBytes = reportService.GenerateExcelReportAsync(summary, scores, actualRisks, showUnitColumn);
                 return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"OrgTrack_Report_{summary.UnitName}_{DateTime.UtcNow:yyyyMMdd}.xlsx");
             }
             
-            var pdfBytes = reportService.GeneratePdfReportAsync(summary, scores, showUnitColumn);
+            var pdfBytes = reportService.GeneratePdfReportAsync(summary, scores, actualRisks, showUnitColumn);
             return File(pdfBytes, "application/pdf", $"OrgTrack_Report_{summary.UnitName}_{DateTime.UtcNow:yyyyMMdd}.pdf");
         }
         catch (ArgumentException ex)

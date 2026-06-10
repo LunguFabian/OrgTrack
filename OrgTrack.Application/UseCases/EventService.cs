@@ -199,7 +199,7 @@ public class EventService(
     {
         var events = await eventRepository.GetByUnitIdAsync(unitId);
         var rsvps = await eventRepository.GetUserRsvpsAsync(userId, events.Select(e => e.Id));
-        return events.Select(e => MapToDto(e, rsvps.FirstOrDefault(r => r.EventId == e.Id)?.Status.ToString()));
+        return events.Select(e => MapToDto(e, rsvps.FirstOrDefault(r => r.EventId == e.Id)?.Rsvp.ToString()));
     }
 
     public async Task<IEnumerable<EventDto>> GetMyEventsAsync(Guid userId)
@@ -216,10 +216,10 @@ public class EventService(
 
         var events = await eventRepository.GetVisibleEventsAsync(userId, visibleUnitIds);
         var rsvps = await eventRepository.GetUserRsvpsAsync(userId, events.Select(e => e.Id));
-        return events.Select(e => MapToDto(e, rsvps.FirstOrDefault(r => r.EventId == e.Id)?.Status.ToString()));
+        return events.Select(e => MapToDto(e, rsvps.FirstOrDefault(r => r.EventId == e.Id)?.Rsvp.ToString()));
     }
 
-    public async Task RsvpAsync(Guid eventId, Guid userId, PresenceStatus status)
+    public async Task SetRsvpAsync(Guid eventId, Guid userId, RsvpStatus rsvp)
     {
         var ev = await eventRepository.GetByIdAsync(eventId);
         if (ev == null) throw new ArgumentException("Event not found.");
@@ -227,21 +227,46 @@ public class EventService(
 
         if (existingRsvp != null)
         {
-            existingRsvp.Status = status;
+            existingRsvp.Rsvp = rsvp;
             existingRsvp.UpdatedAt = DateTime.UtcNow;
             await eventRepository.UpdateRsvpAsync(existingRsvp);
         }
         else
         {
-            var rsvp = new EventRsvp
+            var newRsvp = new EventRsvp
             {
                 EventId = eventId,
                 UserId = userId,
-                Status = status
+                Rsvp = rsvp
             };
-            await eventRepository.AddRsvpAsync(rsvp);
+            await eventRepository.AddRsvpAsync(newRsvp);
         }
-        await activityLogService.LogAttendanceConfirmedAsync(userId, userId, eventId, status.ToString(), ev.OrganizationUnitId);
+        await activityLogService.LogAttendanceConfirmedAsync(userId, userId, eventId, rsvp.ToString(), ev.OrganizationUnitId);
+    }
+
+    public async Task SetAttendanceAsync(Guid eventId, Guid targetUserId, AttendanceStatus attendance)
+    {
+        var ev = await eventRepository.GetByIdAsync(eventId);
+        if (ev == null) throw new ArgumentException("Event not found.");
+        var existingRsvp = await eventRepository.GetRsvpAsync(eventId, targetUserId);
+
+        if (existingRsvp != null)
+        {
+            existingRsvp.Attendance = attendance;
+            existingRsvp.UpdatedAt = DateTime.UtcNow;
+            await eventRepository.UpdateRsvpAsync(existingRsvp);
+        }
+        else
+        {
+            var newRsvp = new EventRsvp
+            {
+                EventId = eventId,
+                UserId = targetUserId,
+                Attendance = attendance
+            };
+            await eventRepository.AddRsvpAsync(newRsvp);
+        }
+        await activityLogService.LogAttendanceConfirmedAsync(targetUserId, targetUserId, eventId, attendance.ToString(), ev.OrganizationUnitId);
     }
 
     private async Task<List<User>> GetEligibleUsersForEventAsync(Guid eventId)
@@ -292,11 +317,28 @@ public class EventService(
     {
         var eligibleUsers = await GetEligibleUsersForEventAsync(eventId);
         var rsvps = await eventRepository.GetAttendanceReportAsync(eventId);
-        var rsvpDict = rsvps.ToDictionary(r => r.UserId, r => r.Status);
-        return eligibleUsers.Select(u => new AttendanceReportItemDto(
+        var rsvpDict = rsvps.ToDictionary(r => r.UserId, r => r);
+        return eligibleUsers.Select(u =>
+        {
+            var hasRsvp = rsvpDict.TryGetValue(u!.Id, out var rsvp);
+            return new AttendanceReportItemDto(
+                u.Id,
+                $"{u.FirstName} {u.LastName}".Trim(),
+                hasRsvp ? rsvp!.Rsvp.ToString() : RsvpStatus.NoResponse.ToString(),
+                hasRsvp ? rsvp!.Attendance.ToString() : AttendanceStatus.Unmarked.ToString()
+            );
+        });
+    }
+
+    public async Task<IEnumerable<RsvpSummaryItemDto>> GetRsvpSummaryAsync(Guid eventId)
+    {
+        var eligibleUsers = await GetEligibleUsersForEventAsync(eventId);
+        var rsvps = await eventRepository.GetAttendanceReportAsync(eventId);
+        var rsvpDict = rsvps.ToDictionary(r => r.UserId, r => r.Rsvp);
+        return eligibleUsers.Select(u => new RsvpSummaryItemDto(
             u!.Id,
             $"{u.FirstName} {u.LastName}".Trim(),
-            rsvpDict.TryGetValue(u.Id, out var status) ? status.ToString() : "NotResponded"
+            rsvpDict.TryGetValue(u.Id, out var rsvpStatus) ? rsvpStatus.ToString() : RsvpStatus.NoResponse.ToString()
         ));
     }
 

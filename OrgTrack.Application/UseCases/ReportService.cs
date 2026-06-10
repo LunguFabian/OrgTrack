@@ -26,7 +26,7 @@ public class ReportService
   </svg>
 </svg>";
 
-    public byte[] GeneratePdfReportAsync(UnitActivitySummaryDto summary, List<MemberActivityScoreDto> scores, bool showUnitColumn = false)
+    public byte[] GeneratePdfReportAsync(UnitActivitySummaryDto summary, List<MemberActivityScoreDto> scores, List<BurnoutRiskDto> burnoutRisks, bool showUnitColumn = false)
     {
         var document = Document.Create(container =>
         {
@@ -38,7 +38,7 @@ public class ReportService
                 page.DefaultTextStyle(x => x.FontSize(11).FontFamily(Fonts.Arial).FontColor(_textColor));
 
                 page.Header().Element(c => ComposeHeader(c, summary));
-                page.Content().Element(c => ComposeContent(c, summary, scores, showUnitColumn));
+                page.Content().Element(c => ComposeContent(c, summary, scores, burnoutRisks, showUnitColumn));
                 page.Footer().Element(ComposeFooter);
             });
         });
@@ -48,7 +48,7 @@ public class ReportService
         return stream.ToArray();
     }
 
-    public byte[] GenerateExcelReportAsync(UnitActivitySummaryDto summary, List<MemberActivityScoreDto> scores, bool showUnitColumn = false)
+    public byte[] GenerateExcelReportAsync(UnitActivitySummaryDto summary, List<MemberActivityScoreDto> scores, List<BurnoutRiskDto> burnoutRisks, bool showUnitColumn = false)
     {
         using var workbook = new XLWorkbook();
         
@@ -159,6 +159,30 @@ public class ReportService
         }
         wsLog.Columns().AdjustToContents();
 
+        // Sheet 4: Burnout Risks
+        if (burnoutRisks.Any())
+        {
+            var wsBurnout = workbook.Worksheets.Add("Burnout Analysis");
+            wsBurnout.Cell("A1").Value = "Member Name";
+            wsBurnout.Cell("B1").Value = "Risk Level";
+            wsBurnout.Cell("C1").Value = "Primary Risk Factor";
+            
+            var burnoutHeader = wsBurnout.Range("A1:C1");
+            burnoutHeader.Style.Font.Bold = true;
+            burnoutHeader.Style.Fill.BackgroundColor = XLColor.FromHtml("#ef4444"); // Red-500
+            burnoutHeader.Style.Font.FontColor = XLColor.White;
+
+            int bRow = 2;
+            foreach (var risk in burnoutRisks.OrderByDescending(r => r.RiskLevel == "Critical" ? 3 : r.RiskLevel == "High" ? 2 : 1))
+            {
+                wsBurnout.Cell(bRow, 1).Value = risk.UserName;
+                wsBurnout.Cell(bRow, 2).Value = risk.RiskLevel;
+                wsBurnout.Cell(bRow, 3).Value = risk.WarningFlags.FirstOrDefault() ?? "Unknown";
+                bRow++;
+            }
+            wsBurnout.Columns().AdjustToContents();
+        }
+
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
         return stream.ToArray();
@@ -186,14 +210,50 @@ public class ReportService
         });
     }
 
-    private void ComposeContent(IContainer container, UnitActivitySummaryDto summary, List<MemberActivityScoreDto> scores, bool showUnitColumn)
+    private void ComposeContent(IContainer container, UnitActivitySummaryDto summary, List<MemberActivityScoreDto> scores, List<BurnoutRiskDto> burnoutRisks, bool showUnitColumn)
     {
         container.PaddingVertical(1, Unit.Centimetre).Column(column =>
         {
             column.Spacing(20);
             ComposeSummaryStats(column, summary);
             ComposeLeaderboard(column, scores, showUnitColumn);
+            if (burnoutRisks.Any())
+            {
+                ComposeBurnoutSection(column, burnoutRisks);
+            }
             ComposeRecentActivityLog(column, summary);
+        });
+    }
+
+    private void ComposeBurnoutSection(ColumnDescriptor column, List<BurnoutRiskDto> burnoutRisks)
+    {
+        column.Item().Text("Burnout & Well-being Analysis").FontSize(14).SemiBold().FontColor("#ef4444"); // Red-500
+        column.Item().PaddingTop(5).Text("The following members have triggered the burnout predictive algorithm. Please review their workload and check in on their well-being.").FontSize(10).FontColor(_mutedColor);
+        
+        column.Item().PaddingTop(10).Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.RelativeColumn(3);  // Name
+                columns.RelativeColumn(2);  // Risk Level
+                columns.RelativeColumn(4);  // Primary Risk Factor
+            });
+
+            table.Header(header =>
+            {
+                header.Cell().BorderBottom(2).BorderColor("#ef4444").PaddingBottom(5).Text("Member").SemiBold();
+                header.Cell().BorderBottom(2).BorderColor("#ef4444").PaddingBottom(5).Text("Risk Level").SemiBold();
+                header.Cell().BorderBottom(2).BorderColor("#ef4444").PaddingBottom(5).Text("Primary Trigger").SemiBold();
+            });
+
+            foreach (var risk in burnoutRisks.OrderByDescending(r => r.RiskLevel == "Critical" ? 3 : r.RiskLevel == "High" ? 2 : 1))
+            {
+                var riskColor = risk.RiskLevel == "Critical" ? "#dc2626" : (risk.RiskLevel == "High" ? "#ea580c" : "#ca8a04");
+                
+                table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(risk.UserName).FontSize(11).SemiBold();
+                table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(risk.RiskLevel.ToUpper()).FontSize(10).SemiBold().FontColor(riskColor);
+                table.Cell().PaddingVertical(5).BorderBottom(1).BorderColor(_borderColor).Text(risk.WarningFlags.FirstOrDefault() ?? "Unknown").FontSize(10).FontColor(_mutedColor);
+            }
         });
     }
 

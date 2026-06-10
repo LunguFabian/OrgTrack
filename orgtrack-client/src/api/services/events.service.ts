@@ -4,7 +4,14 @@ import type { EventDto, CreateEventRequest, UpdateEventRequest } from '../../typ
 export interface AttendanceReportItem {
   userId: string;
   userName: string;
-  status: string;
+  rsvp: string;
+  attendance: string;
+}
+
+export interface RsvpSummaryItem {
+  userId: string;
+  userName: string;
+  rsvp: string;
 }
 
 export const eventsService = {
@@ -27,12 +34,17 @@ export const eventsService = {
     await api.delete(`/organization/units/${unitId}/events/${eventId}`);
   },
 
-  async rsvp(unitId: string, eventId: string, status: 'Present' | 'Absent' | 'Maybe'): Promise<void> {
+  async rsvp(unitId: string, eventId: string, status: 'Going' | 'Maybe' | 'NotGoing'): Promise<void> {
     await api.post(`/organization/units/${unitId}/events/${eventId}/rsvp`, { status });
   },
 
   async getMyEvents(): Promise<EventDto[]> {
     const res = await api.get<EventDto[]>('/me/events');
+    return res.data;
+  },
+
+  async getRsvpSummary(unitId: string, eventId: string): Promise<RsvpSummaryItem[]> {
+    const res = await api.get<RsvpSummaryItem[]>(`/organization/units/${unitId}/events/${eventId}/rsvp-summary`);
     return res.data;
   },
 

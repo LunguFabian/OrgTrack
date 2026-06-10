@@ -25,7 +25,7 @@ public class EventServiceTests
         _userRepositoryMock = new Mock<IUserRepository>();
         _activityLogRepositoryMock = new Mock<IActivityLogRepository>();
         _googleCalendarServiceMock = new Mock<IGoogleCalendarService>();
-        _activityLogService = new ActivityLogService(_activityLogRepositoryMock.Object);
+        _activityLogService = new ActivityLogService(_activityLogRepositoryMock.Object, new Mock<IUserRepository>().Object);
 
         _eventService = new EventService(
             _eventRepositoryMock.Object,
@@ -194,7 +194,7 @@ public class EventServiceTests
         _eventRepositoryMock.Setup(r => r.GetRsvpAsync(eventId, userId)).ReturnsAsync((EventRsvp?)null);
         _eventRepositoryMock.Setup(r => r.AddRsvpAsync(It.IsAny<EventRsvp>())).Returns(Task.CompletedTask);
 
-        await _eventService.RsvpAsync(eventId, userId, PresenceStatus.Present);
+        await _eventService.SetRsvpAsync(eventId, userId, RsvpStatus.Going);
 
         _eventRepositoryMock.Verify(r => r.AddRsvpAsync(It.IsAny<EventRsvp>()), Times.Once);
     }
